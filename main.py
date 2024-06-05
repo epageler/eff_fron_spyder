@@ -5,6 +5,7 @@ Created on Wed Jun  5 08:20:08 2024
 @author: evan_
 """
 import yfinance_api as yf_api
+import port_stats as ps
 
 if __name__=="__main__":
     tickers = ["BIL", "AGG", "TIP", "MUB", "PFF", "IVV", "IWM", "EFA", "EEM", "IYR"]
@@ -16,3 +17,4 @@ if __name__=="__main__":
         print(err)
     else:
         adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+        total_return= ps.get_total_return(adj_daily_close)

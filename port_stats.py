@@ -7,12 +7,14 @@ Created on Wed Jun  5 11:26:12 2024
 import pandas as pd
 
 
-def get_daily_return(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("calculating daily_return df")
-
-
 def get_daily_ln_return(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("calculating daily_ln_return df")
+    print("\n calculating daily_ln_return df")
+    return adj_close
+
+
+def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
+    print("\n calculating total_return df")
+    return adj_close
 
 
 def get_correlation_matrix(adj_close: pd.DataFrame) -> pd.DataFrame:
