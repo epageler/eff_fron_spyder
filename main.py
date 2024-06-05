@@ -17,4 +17,5 @@ if __name__=="__main__":
         print(err)
     else:
         adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+        growth_of_10000=ps.get_growth_10000(adj_daily_close)
         total_return= ps.get_total_return(adj_daily_close)
