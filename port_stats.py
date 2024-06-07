@@ -5,39 +5,60 @@ Created on Wed Jun  5 11:26:12 2024
 @author: evan_
 """
 import pandas as pd
+import numpy as np
+# from numpy.typing import NDArray
+# from typing import TypeVar
+from typing import Any
 
 
 def get_growth_10000(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating get_growth_10000 df")
-    g = adj_close.div(adj_close.iloc[0])*10000
-    return g
+    df = adj_close.div(adj_close.iloc[0])*10000
+    return df
 
 
-def get_daily_ln_return(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating daily_ln_return df")
-    return adj_close
+def get_daily_returns(adj_close: pd.DataFrame) -> pd.DataFrame:
+    df = (adj_close/adj_close.shift(1)-1)
+    df=df.dropna()
+    return df
+
+
+def get_daily_ln_returns(adj_close: Any) -> Any:
+    # print(type(adj_close))
+    df = np.log((adj_close/adj_close.shift(1)))
+    # print(type(df))
+    df=df.dropna()
+    # print(type(df))
+    return df
 
 
 def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
     print("\n calculating total_return df")
-    return adj_close
+    return pd.DataFrame()
 
 
-def get_correlation_matrix(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating correlation_matrix df")
+def get_correlation_matrix(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
+    df = daily_ln_returns.corr()
+    return df
 
 
-def get_expected_returns(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating expected_returns df")
+def get_expected_returns(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
+    df = np.exp(daily_ln_returns.mean()*252)-1
+    return df
 
 
 def get_std_deviations(adj_close: pd.DataFrame) -> pd.DataFrame:
     print("\n calculating std_deviations df")
+    df = pd.DataFrame()
+    return df
 
 
 def get_covariance_matrix(adj_close: pd.DataFrame) -> pd.DataFrame:
     print("\n calculating covariance_matrix df")
+    df = pd.DataFrame()
+    return df
 
 
 def get_inv_covariance_matrix(adj_close: pd.DataFrame) -> pd.DataFrame:
     print("\n calculating inv_covariance_matrix df")
+    df = pd.DataFrame()
+    return df

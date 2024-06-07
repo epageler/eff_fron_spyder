@@ -65,7 +65,6 @@ def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str
     # Retrieve daily
     adj_close = yf.download(tickers, start=start_date, end=end_date,
                             interval="1d")["Adj Close"][tickers]
-
     return adj_close
 
 
