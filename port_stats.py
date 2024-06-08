@@ -46,9 +46,8 @@ def get_expected_returns(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_std_deviations(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating std_deviations df")
-    df = pd.DataFrame()
+def get_std_deviations(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
+    df = daily_ln_returns.std()*np.sqrt(252)
     return df
 
 

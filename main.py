@@ -31,3 +31,4 @@ if __name__ == "__main__":
         daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
         correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
         expected_returns=ps.get_expected_returns(daily_ln_returns)
+        std_deviations=ps.get_std_deviations(daily_ln_returns)
