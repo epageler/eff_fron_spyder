@@ -6,7 +6,7 @@ Created on Wed Jun  5 11:26:12 2024
 """
 import pandas as pd
 import numpy as np
-# from numpy.typing import NDArray
+from numpy.typing import NDArray
 # from typing import TypeVar
 from typing import Any
 
@@ -18,7 +18,7 @@ def get_growth_10000(adj_close: pd.DataFrame) -> pd.DataFrame:
 
 def get_daily_returns(adj_close: pd.DataFrame) -> pd.DataFrame:
     df = (adj_close/adj_close.shift(1)-1)
-    df=df.dropna()
+    df = df.dropna()
     return df
 
 
@@ -26,7 +26,7 @@ def get_daily_ln_returns(adj_close: Any) -> Any:
     # print(type(adj_close))
     df = np.log((adj_close/adj_close.shift(1)))
     # print(type(df))
-    df=df.dropna()
+    df = df.dropna()
     # print(type(df))
     return df
 
@@ -51,13 +51,11 @@ def get_std_deviations(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def get_covariance_matrix(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating covariance_matrix df")
-    df = pd.DataFrame()
+def get_cov_matrix(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
+    df = daily_ln_returns.cov()
     return df
 
 
-def get_inv_covariance_matrix(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating inv_covariance_matrix df")
-    df = pd.DataFrame()
+def get_inv_cov_matrix(cov_matrix: Any) -> Any:
+    df = np.linalg.inv(cov_matrix)
     return df

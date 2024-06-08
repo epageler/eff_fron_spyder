@@ -32,3 +32,5 @@ if __name__ == "__main__":
         correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
         expected_returns=ps.get_expected_returns(daily_ln_returns)
         std_deviations=ps.get_std_deviations(daily_ln_returns)
+        cov_matrix=ps.get_cov_matrix(daily_ln_returns)
+        inv_cov_matrix=ps.get_inv_cov_matrix(cov_matrix)
