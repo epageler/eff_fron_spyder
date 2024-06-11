@@ -70,7 +70,6 @@ def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str
 
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
-
     tickers = ["BIL", "AGG", "TIP", "MUB", "PFF", "IVV", "IWM", "EFA", "EEM", "IYR"]
     start: str = "2023-05-30"
     end: str = "2024-05-30"
