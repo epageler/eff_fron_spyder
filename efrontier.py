@@ -15,14 +15,7 @@ def get_max_sharpe_portfolio(
     risk_free_rate: float,
     expected_returns: pd.Series,
     cov: pd.DataFrame,
-) -> pd.DataFrame:
-    """
-    Calculates the allocation of the portfolio with the maximum Sharpe ratio.
-
-    Returns:
-        None.
-
-    """
+) -> list[float]:
 
     def neg_sharpe_ratio(guess, expected_returns, cov, risk_free_rate):
         er = sum(guess * expected_returns)
@@ -67,19 +60,58 @@ def get_max_sharpe_portfolio(
     return eff_fron_point
 
 
-def get_min_risk_portfolio():
-    print("get_portfolio_min_risk")
+def get_min_risk_portfolio(
+    inv_and_constraints: pd.DataFrame,
+    risk_free_rate: float,
+    expected_returns: pd.Series,
+    cov: pd.DataFrame,
+) -> list[float]:
+
+    # ---------- Configure optimization ------------
+    # Objective function
+    def portfolio_risk(guess, expected_returns, cov, risk_free_rate):
+        sd = np.dot(np.dot(guess, cov), guess.T) * 252
+        return sd
+
+    # Initial guess
+    num_tickers = len(inv_and_constraints)
+    guess = pd.Series([1 / num_tickers] * num_tickers, index=inv_and_constraints["Ticker"])
+    # args
+    args = (expected_returns, cov, risk_free_rate)
+
+    # Constraint #1
+    def weights_total_one_hundred_pct(guess):
+        return sum(guess) - 1
+
+    cons = {"type": "eq", "fun": weights_total_one_hundred_pct}
+
+    # Bounds
+    bnds = []
+    for i in range(0, num_tickers):
+        bnds.append(
+            (
+                inv_and_constraints.loc[i]["Min Weight"],
+                inv_and_constraints.loc[i]["Max Weight"],
+            )
+        )
+    # Perform Optimizaiton
+    solution = minimize(
+        portfolio_risk, guess, args=args, method="SLSQP", constraints=cons, bounds=bnds
+    )
+    # Retrieve results of optimization
+    risk = solution.fun
+    portfolio = solution.x
+    portfolio_ret = np.inner(portfolio, expected_returns)
+    sharpe = (portfolio_ret - risk_free_rate) / risk
+
+    # Construct entry for Efficieent Portfolio df
+    eff_fron_point = [risk, portfolio_ret, sharpe]
+    for i in portfolio:
+        eff_fron_point.append(i)
+    return eff_fron_point
 
 
 def get_max_return_portfolio():
-    """
-
-
-    Returns:
-        None.
-
-    """
-
     print("get_portfolio_max_return")
 
 
@@ -134,7 +166,10 @@ def get_efficient_frontier(
         cols.append(ticker)
     eff_fron = pd.DataFrame(columns=cols)
 
-    # get_min_risk_portfolio()
+    min_risk_portfolio = get_min_risk_portfolio(
+        inv_and_constraints, risk_free_rate, expected_returns, cov_matrix
+    )
+    eff_fron.loc[len(eff_fron.index)] = min_risk_portfolio
     max_sharpe_port = get_max_sharpe_portfolio(
         inv_and_constraints, risk_free_rate, expected_returns, cov_matrix
     )
