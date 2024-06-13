@@ -163,6 +163,68 @@ def get_max_return_portfolio(
     return eff_fron_point
 
 
+def get_target_return_portfolio(
+    inv_and_constraints: pd.DataFrame,
+    risk_free_rate: float,
+    expected_returns: pd.Series,
+    cov: pd.DataFrame,
+    tgt_ret: float,
+) -> list[float]:
+
+    # ---------- Configure optimization ------------
+    # Objective function
+    def std_deviation(guess, expected_returns, cov, risk_free_rate):
+        sd = np.sqrt(np.dot(np.dot(guess, cov), guess.T) * 252)
+        return sd
+
+    # Initial guess
+    num_tickers = len(inv_and_constraints)
+    guess = pd.Series([1 / num_tickers] * num_tickers, index=inv_and_constraints["Ticker"])
+    # args
+    args = (expected_returns, cov, risk_free_rate)
+
+    # Set contraints
+    # Constraint #1
+    def weights_total_one_hundred_pct(guess):
+        return sum(guess) - 1
+
+    # Constraint #2
+    def return_equals_target(guess: float) -> float:
+        p_ret = np.inner(guess, expected_returns)
+        return p_ret - tgt_ret
+
+    cons = (
+        {"type": "eq", "fun": weights_total_one_hundred_pct},
+        {"type": "eq", "fun": return_equals_target},
+    )
+
+    # Bounds
+    bnds = []
+    for i in range(0, num_tickers):
+        bnds.append(
+            (
+                inv_and_constraints.loc[i]["Min Weight"],
+                inv_and_constraints.loc[i]["Max Weight"],
+            )
+        )
+    # Perform Optimizaiton
+    solution = minimize(
+        std_deviation, guess, args=args, method="SLSQP", constraints=cons, bounds=bnds
+    )
+    # Retrieve results of optimization
+    p_ret = -solution.fun
+    portfolio = solution.x
+    risk = np.sqrt(np.dot(np.dot(portfolio, cov), portfolio.T) * 252)
+    p_ret = np.inner(portfolio, expected_returns)
+    sharpe = (p_ret - risk_free_rate) / risk
+
+    # Construct entry to be added to Efficient Portfolio df
+    eff_fron_point = [risk, p_ret, sharpe]
+    for i in portfolio:
+        eff_fron_point.append(i)
+    return eff_fron_point
+
+
 def get_efficient_frontier(
     inv_and_constraints: pd.DataFrame, risk_free_rate: float, adj_daily_close: pd.DataFrame
 ) -> pd.DataFrame:
@@ -233,4 +295,19 @@ def get_efficient_frontier(
     )
     eff_fron.loc[len(eff_fron)] = max_return_port
 
+    # Get Portfolios to Add to Efficient Frontier by
+    # interating from minimum return to maximum return in increments
+    # Incremeent is defined in INCR
+    INCR = 0.005
+    min_ret = eff_fron["Return"].min()
+    max_ret = eff_fron["Return"].max()
+    num_steps = int((max_ret - min_ret) / INCR)
+    tgt_ret = min_ret
+    for i in range(num_steps):
+        tgt_ret += INCR
+        tgt_ret_port = get_target_return_portfolio(
+            inv_and_constraints, risk_free_rate, expected_returns, cov_matrix, tgt_ret
+        )
+        eff_fron.loc[len(eff_fron)] = tgt_ret_port
+    eff_fron = eff_fron.sort_values("Risk", ascending=True)
     return eff_fron

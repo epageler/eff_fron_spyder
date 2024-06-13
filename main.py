@@ -27,7 +27,7 @@ def get_start_end_risk_free_rate(excel_file: str, sheet: str) -> Tuple[str, str,
 
 
 if __name__ == "__main__":
-    excel_file: str = "youtube.xlsx"
+    excel_file: str = "asset_classes.xlsx"
     inv_and_constraints: pd.DataFrame = get_investments_and_constraints(
         excel_file, sheet="Investments"
     )
