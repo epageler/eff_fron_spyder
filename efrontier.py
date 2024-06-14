@@ -296,18 +296,18 @@ def get_efficient_frontier(
     eff_fron.loc[len(eff_fron)] = max_return_port
 
     # Get Portfolios to Add to Efficient Frontier by
-    # interating from minimum return to maximum return in increments
-    # Incremeent is defined in INCR
+    # interating from minimum return to maximum return in 0.5% increments
     INCR = 0.005
     min_ret = eff_fron["Return"].min()
     max_ret = eff_fron["Return"].max()
-    num_steps = int((max_ret - min_ret) / INCR)
-    tgt_ret = min_ret
-    for i in range(num_steps):
+    tgt_ret = 0
+    while tgt_ret <= (max_ret - INCR / 5):  # Exclude portfolio "too close" to max return
+        if tgt_ret >= min_ret + INCR / 5:  # Exclude portfolio "too close" to min return
+            tgt_ret_port = get_target_return_portfolio(
+                inv_and_constraints, risk_free_rate, expected_returns, cov_matrix, tgt_ret
+            )
+            eff_fron.loc[len(eff_fron)] = tgt_ret_port
         tgt_ret += INCR
-        tgt_ret_port = get_target_return_portfolio(
-            inv_and_constraints, risk_free_rate, expected_returns, cov_matrix, tgt_ret
-        )
-        eff_fron.loc[len(eff_fron)] = tgt_ret_port
+
     eff_fron = eff_fron.sort_values("Risk", ascending=True)
     return eff_fron

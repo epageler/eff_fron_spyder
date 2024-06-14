@@ -21,7 +21,7 @@ def get_investment_names(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
 
     Returns:
         str:
-            If an invalid ticker is included in list, message specifyinb 
+            If an invalid ticker is included in list, message specifyinb
             invalid ticker. Empty string if no errors.
         pd.DataFrame:
             Columnn Heading(s): shortName,
@@ -32,18 +32,16 @@ def get_investment_names(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
     investment_names = pd.DataFrame()
     for t in tickers:
         try:
-            investment_names.loc[t, "shortName"] = yf.Ticker(
-                t).info["shortName"]
+            investment_names.loc[t, "longName"] = yf.Ticker(t).info["longName"]
         except:
             err = f"Invalid ticker: {t}"
-            investment_names = pd.DataFrame()   # return empty df if error
-            return err, investment_names    # return immediately if error
+            investment_names = pd.DataFrame()  # return empty df if error
+            return err, investment_names  # return immediately if error
     return err, investment_names
 
 
 # ---------------------------------------------------------------------------- #
-def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str
-                        ) -> pd.DataFrame:
+def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str) -> pd.DataFrame:
     """
     Retrieve adjusted daily closing prices for a list of tickers over a specified
     date range. Order of columns in returned df is same as order in tickers argument.
@@ -63,8 +61,9 @@ def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str
             df Contents: Adjusted daily closing prices
     """
     # Retrieve daily
-    adj_close = yf.download(tickers, start=start_date, end=end_date,
-                            interval="1d")["Adj Close"][tickers]
+    adj_close = yf.download(tickers, start=start_date, end=end_date, interval="1d")["Adj Close"][
+        tickers
+    ]
     return adj_close
 
 
