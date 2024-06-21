@@ -39,10 +39,11 @@ def sidebar() -> Tuple:
 
     def reset_all() -> Tuple:
         tickers_and_constraints = pd.DataFrame()
+        names=pd.DataFrame()
         start_date = None
         end_date = None
         rf_rate = None
-        return tickers_and_constraints, start_date, end_date, rf_rate
+        return tickers_and_constraints, names, start_date, end_date, rf_rate
 
     def reset_start_end_and_rf_rate():
         start_date = None
@@ -63,20 +64,19 @@ def sidebar() -> Tuple:
             tickers_and_constraints = pd.read_excel("./data/industry_sectors.xlsx")
         elif opt == options[2]:
             st.session_state["xlsx_selected"] = False
-            tickers_and_constraints, start_date, end_date, rf_rate = reset_all()
+            tickers_and_constraints, names, start_date, end_date, rf_rate = reset_all()
             f = st.file_uploader("Select Excel File")
             if f:
                 tickers_and_constraints = pd.read_excel(f)
                 st.session_state["xlsx_selected"] = True
         else:
-            tickers_and_constraints, start_date, end_date, rf_rate = reset_all()
+            tickers_and_constraints, names, start_date, end_date, rf_rate = reset_all()
             st.session_state["xlsx_selected"] = False
             st.session_state["dates_and_rf_rate_selected"] = False
         # Check if all tickers are valid
         if st.session_state["xlsx_selected"]:
-            err, dft = yf_api.get_investment_names(
-                tickers_and_constraints["Ticker"].to_list()
-            )
+            names=pd.DataFrame()
+            err, names = yf_api.get_investment_names(tickers=tickers_and_constraints["Ticker"].tolist())
             if err != "":
                 st.error(f"Error! {err}")
                 reset_all()
@@ -106,7 +106,7 @@ def sidebar() -> Tuple:
                     start_date, end_date, rf_rate = reset_start_end_and_rf_rate()
                     st.session_state["dates_and_rf_rate_entered"] = False
 
-        return tickers_and_constraints, start_date, end_date, rf_rate
+        return tickers_and_constraints, names, start_date, end_date, rf_rate
 
 
 # def get_start_end_risk_free_rate(excel_file: str, sheet: str) -> Tuple[str, str, float]:
@@ -120,11 +120,12 @@ def sidebar() -> Tuple:
 if __name__ == "__main__":
     configure_page()
     overview()
-    tickers_and_constraints, start, end, risk_free_rate = sidebar()
+    tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
 
     if st.session_state["xlsx_selected"]:
         tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
         st.write(tickers)
+        st.write(names)
 
     if st.session_state["dates_and_rf_rate_selected"]:
         pass
