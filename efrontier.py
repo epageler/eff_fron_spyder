@@ -297,10 +297,10 @@ def get_efficient_frontier(
 
     # Get Portfolios to Add to Efficient Frontier by
     # interating from minimum return to maximum return in 0.5% increments
-    INCR = 0.005
+    INCR: float = 0.005
     min_ret = eff_fron["Return"].min()
     max_ret = eff_fron["Return"].max()
-    tgt_ret = 0
+    tgt_ret: float = 0.000
     while tgt_ret <= (max_ret - INCR / 5):  # Exclude portfolio "too close" to max return
         if tgt_ret >= min_ret + INCR / 5:  # Exclude portfolio "too close" to min return
             tgt_ret_port = get_target_return_portfolio(

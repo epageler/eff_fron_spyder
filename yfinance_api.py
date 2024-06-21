@@ -21,10 +21,10 @@ def get_investment_names(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
 
     Returns:
         str:
-            If an invalid ticker is included in list, message specifyinb
+            If an invalid ticker is included in list, message specify
             invalid ticker. Empty string if no errors.
         pd.DataFrame:
-            Columnn Heading(s): shortName,
+            Column Heading(s): shortName,
             Index: ticker
             df Contents: Short Name for each investment. Empty df if errors.
     """
@@ -34,7 +34,7 @@ def get_investment_names(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
         try:
             investment_names.loc[t, "longName"] = yf.Ticker(t).info["longName"]
         except:
-            err = f"Invalid ticker: {t}"
+            err = f"Invalid Ticker: {t}"
             investment_names = pd.DataFrame()  # return empty df if error
             return err, investment_names  # return immediately if error
     return err, investment_names
@@ -56,7 +56,7 @@ def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str) -> p
 
     Returns:
         pd.DataFrame:
-            Columnn Heading(s): tickers
+            Column Heading(s): tickers
             Index: Date
             df Contents: Adjusted daily closing prices
     """
