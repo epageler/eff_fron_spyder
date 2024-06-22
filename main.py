@@ -19,7 +19,7 @@ def configure_page() -> None:
 
 
 def overview() -> None:
-    st.write(st.session_state)
+    # st.write(st.session_state)
     st.markdown("## Overview")
     st.markdown(
         "### This app determines the Efficient Frontier for a specified list of investments and timeframe."
@@ -39,7 +39,7 @@ def sidebar() -> Tuple:
 
     def reset_all() -> Tuple:
         tickers_and_constraints = pd.DataFrame()
-        names=pd.DataFrame()
+        names = pd.DataFrame()
         start_date = None
         end_date = None
         rf_rate = None
@@ -75,8 +75,10 @@ def sidebar() -> Tuple:
             st.session_state["dates_and_rf_rate_selected"] = False
         # Check if all tickers are valid
         if st.session_state["xlsx_selected"]:
-            names=pd.DataFrame()
-            err, names = yf_api.get_investment_names(tickers=tickers_and_constraints["Ticker"].tolist())
+            names = pd.DataFrame()
+            err, names = yf_api.get_investment_names(
+                tickers=tickers_and_constraints["Ticker"].tolist()
+            )
             if err != "":
                 st.error(f"Error! {err}")
                 reset_all()
@@ -123,9 +125,17 @@ if __name__ == "__main__":
     tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
 
     if st.session_state["xlsx_selected"]:
-        tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
-        st.write(tickers)
-        st.write(names)
+        with st.expander(
+            "Show / Hide Tickers, Investments, & Constraints", expanded=True
+        ):
+            df2: pd.DataFrame = names
+            df2["Ticker"] = names.index
+            df2.rename(columns={"longName": "Investment"}, inplace=True)
+            df = pd.merge(tickers_and_constraints, df2)
+            df = df[["Ticker", "Investment", "Min Weight", "Max Weight"]]
+            st.dataframe(
+                df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"}))
+            
 
     if st.session_state["dates_and_rf_rate_selected"]:
         pass
@@ -148,4 +158,4 @@ if __name__ == "__main__":
         #     )
         #     st.dataframe(growth_of_10000)
         #     st.dataframe(correlation_matrix)
-st.write(st.session_state)
+# st.write(st.session_state)
