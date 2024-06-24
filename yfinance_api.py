@@ -7,6 +7,7 @@ Created on Tue Jun  4 15:50:42 2024
 from typing import Tuple
 import pandas as pd
 import yfinance as yf  # type: ignore
+import streamlit as st
 
 
 # ---------------------------------------------------------------------------- #

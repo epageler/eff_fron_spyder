@@ -22,11 +22,12 @@ def overview() -> None:
     # st.write(st.session_state)
     st.markdown("## Overview")
     st.markdown(
-        "### This app determines the Efficient Frontier for a specified list of investments and timeframe."
+        "#### This app determines the Efficient Frontier for a specified list of investments and timeframe."
     )
     st.markdown(
         "The objective is to determine the optimum diversification of an investment portfolio."
     )
+    st.divider()
 
 
 def sidebar() -> Tuple:
@@ -60,8 +61,10 @@ def sidebar() -> Tuple:
         )
         if opt == options[0]:
             tickers_and_constraints = pd.read_excel("./data/asset_classes.xlsx")
+            st.session_state["dates_and_rf_rate_selected"] = False
         elif opt == options[1]:
             tickers_and_constraints = pd.read_excel("./data/industry_sectors.xlsx")
+            st.session_state["dates_and_rf_rate_selected"] = False
         elif opt == options[2]:
             st.session_state["xlsx_selected"] = False
             tickers_and_constraints, names, start_date, end_date, rf_rate = reset_all()
@@ -91,7 +94,7 @@ def sidebar() -> Tuple:
                 start_date = st.date_input(
                     "Select Start Date",
                     format="MM/DD/YYYY",
-                    value=datetime.today() - timedelta(1) - relativedelta(years=3),
+                    value=datetime.today() - timedelta(1) - relativedelta(years=10),
                 )
                 end_date = st.date_input(
                     "Select End Date",
@@ -103,6 +106,7 @@ def sidebar() -> Tuple:
                     "Calculate Efficient Frontier", on_click=dates_and_rf_rate_selected
                 )
             if calc_ef_button:
+                st.session_state["dates_and_rf_rate_selected"] = True
                 if end_date < start_date:
                     st.error("Error! Start Date must be less than End Date.")
                     start_date, end_date, rf_rate = reset_start_end_and_rf_rate()
@@ -119,43 +123,56 @@ def sidebar() -> Tuple:
 #     return start, end, risk_free_rate
 
 
+def display_configuration():
+    with st.expander("Tickers, Investment Names, & Constraints (Click to Hide / Show)", expanded=True):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"###### History Start Date: {start}")
+        with col2:
+            st.markdown(f"###### History Enc Date: {end}")
+        with col3:
+            st.markdown(f"###### Risk-Free Rate: {risk_free_rate:.2f}%")
+        st.markdown("#### Investments & Constraints:")
+        df2: pd.DataFrame = names
+        df2["Ticker"] = names.index
+        df2.rename(columns={"longName": "Investment"}, inplace=True)
+        df = pd.merge(tickers_and_constraints, df2)
+        df = df[["Ticker", "Investment", "Min Weight", "Max Weight"]]
+        st.dataframe(
+            df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"})
+            )
+def display_growth_of_10000():
+        with st.expander("Growth of $10,000 (Click to Hide / Show)",expanded=True):
+            tickers: list[str]=tickers_and_constraints['Ticker'].tolist()
+            adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+            # st.dataframe(adj_daily_close)
+            growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+            st.dataframe(growth_of_10000)
+
 if __name__ == "__main__":
     configure_page()
     overview()
     tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
+    if (st.session_state["xlsx_selected"] and st.session_state["dates_and_rf_rate_selected"]):
+        display_configuration()
+        display_growth_of_10000()
 
-    if st.session_state["xlsx_selected"]:
-        with st.expander(
-            "Show / Hide Tickers, Investments, & Constraints", expanded=True
-        ):
-            df2: pd.DataFrame = names
-            df2["Ticker"] = names.index
-            df2.rename(columns={"longName": "Investment"}, inplace=True)
-            df = pd.merge(tickers_and_constraints, df2)
-            df = df[["Ticker", "Investment", "Min Weight", "Max Weight"]]
-            st.dataframe(
-                df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"}))
-            
 
-    if st.session_state["dates_and_rf_rate_selected"]:
-        pass
 
-        # err, names = yf_api.get_investment_names(tickers)
-        # if err != "":
-        #     print(err)
-        # else:
-        #     adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
-        #     growth_of_10000 = ps.get_growth_10000(adj_daily_close)
-        #     daily_returns = ps.get_daily_returns(adj_daily_close)
-        #     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
-        #     correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
-        #     expected_returns = ps.get_expected_returns(daily_ln_returns)
-        #     std_deviations = ps.get_std_deviations(daily_ln_returns)
-        #     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
-        #     inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
-        #     efficient_frontier = ef.get_efficient_frontier(
-        #         inv_and_constraints, risk_free_rate, adj_daily_close
-        #     )
-        #     st.dataframe(growth_of_10000)
-        #     st.dataframe(correlation_matrix)
+    # err, names = yf_api.get_investment_names(tickers)
+    # if err != "":
+    #     print(err)
+    # else:
+    #     daily_returns = ps.get_daily_returns(adj_daily_close)
+    #     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
+    #     correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
+    #     expected_returns = ps.get_expected_returns(daily_ln_returns)
+    #     std_deviations = ps.get_std_deviations(daily_ln_returns)
+    #     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
+    #     inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
+    #     efficient_frontier = ef.get_efficient_frontier(
+    #         inv_and_constraints, risk_free_rate, adj_daily_close
+    #     )
+    #     st.dataframe(growth_of_10000)
+    #     st.dataframe(correlation_matrix)
 # st.write(st.session_state)
