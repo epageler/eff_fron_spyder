@@ -7,6 +7,8 @@ import yfinance_api as yf_api
 import streamlit as st
 import port_stats as ps
 import efrontier as ef
+import plotly.express as px
+import plotly.graph_objects as go
 
 if "init" not in st.session_state:
     st.session_state["init"] = True
@@ -30,7 +32,7 @@ def overview() -> None:
     st.divider()
 
 
-def sidebar() -> (tuple[pd.DataFrame,pd.DataFrame,datetime,datetime,float]):
+def sidebar() -> tuple[pd.DataFrame, pd.DataFrame, datetime, datetime, float]:
 
     def excel_file_selected() -> None:
         st.session_state["xlsx_selected"] = True
@@ -123,8 +125,10 @@ def sidebar() -> (tuple[pd.DataFrame,pd.DataFrame,datetime,datetime,float]):
 #     return start, end, risk_free_rate
 
 
-def display_configuration()->None:
-    with st.expander("Tickers, Investment Names, & Constraints (Click to Hide / Show)", expanded=True):
+def display_configuration() -> None:
+    with st.expander(
+        "Tickers, Investment Names, & Constraints (Click to Hide / Show)", expanded=True
+    ):
         col1, col2, col3 = st.columns(3)
         with col1:
             st.markdown(f"###### History Start Date: {start}")
@@ -138,30 +142,52 @@ def display_configuration()->None:
         df2.rename(columns={"longName": "Investment"}, inplace=True)
         df = pd.merge(tickers_and_constraints, df2)
         df = df[["Ticker", "Investment", "Min Weight", "Max Weight"]]
-        st.dataframe(
-            df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"})
-            )
-def display_growth_of_10000_df()->None:
-        with st.expander("Growth of $10,000 (Click to Hide / Show)",expanded=True):
-            tickers: list[str]=tickers_and_constraints['Ticker'].tolist()
-            adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
-            # st.dataframe(adj_daily_close)
-            growth_of_10000 = ps.get_growth_10000(adj_daily_close)
-            columns=growth_of_10000.columns
-            format_dict:dict[str,str]={}
-            for c in columns:
-                format_dict[c]="${:,.2f}"
-            st.dataframe(growth_of_10000.style.format(formatter=format_dict))
+        st.dataframe(df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"}))
+
+
+def display_growth_of_10000_df() -> None:
+    with st.expander("Growth of $10,000 Table (Click to Hide / Show)", expanded=True):
+        tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
+        adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+        growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+        columns = growth_of_10000.columns
+        format_dict: dict[str, str] = {}
+        for c in columns:
+            format_dict[c] = "${:,.2f}"
+        st.dataframe(growth_of_10000.style.format(formatter=format_dict))
+
+
+def display_growth_of_10000_chart() -> None:
+    with st.expander("Growth of $10,000 Graph (Click to Hide / Show)", expanded=True):
+        tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
+        adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+        growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+        columns = growth_of_10000.columns
+        format_dict: dict[str, str] = {}
+        for c in columns:
+            format_dict[c] = "${:,.2f}"
+        fig = px.line(
+            growth_of_10000,
+            x=growth_of_10000.index,
+            y=growth_of_10000.columns[0 : len(growth_of_10000.columns)],
+            title="Growth of $10,000",
+            # color="Ticker"
+        )
+        fig.update_layout(dict(yaxis_tickprefix = '$', yaxis_tickformat = ',.0f'))
+        st.plotly_chart(fig, use_container_width=True)
+
 
 if __name__ == "__main__":
     configure_page()
     overview()
     tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
-    if (st.session_state["xlsx_selected"] and st.session_state["dates_and_rf_rate_selected"]):
+    if (
+        st.session_state["xlsx_selected"]
+        and st.session_state["dates_and_rf_rate_selected"]
+    ):
         display_configuration()
         display_growth_of_10000_df()
-
-
+        display_growth_of_10000_chart()
 
     # err, names = yf_api.get_investment_names(tickers)
     # if err != "":
