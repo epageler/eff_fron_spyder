@@ -5,6 +5,7 @@ Created on Tue Jun  4 15:50:42 2024
 @author: evan_
 """
 from typing import Tuple
+from datetime import datetime
 import pandas as pd
 import yfinance as yf  # type: ignore
 import streamlit as st
@@ -42,7 +43,9 @@ def get_investment_names(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
 
 
 # ---------------------------------------------------------------------------- #
-def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str) -> pd.DataFrame:
+def get_adj_daily_close(
+    tickers: list[str], start_date: str|datetime, end_date: str|datetime
+) -> pd.DataFrame:
     """
     Retrieve adjusted daily closing prices for a list of tickers over a specified
     date range. Order of columns in returned df is same as order in tickers argument.
@@ -62,9 +65,9 @@ def get_adj_daily_close(tickers: list[str], start_date: str, end_date: str) -> p
             df Contents: Adjusted daily closing prices
     """
     # Retrieve daily
-    adj_close = yf.download(tickers, start=start_date, end=end_date, interval="1d")["Adj Close"][
-        tickers
-    ]
+    adj_close = yf.download(tickers, start=start_date, end=end_date, interval="1d")[
+        "Adj Close"
+    ][tickers]
     return adj_close
 
 
