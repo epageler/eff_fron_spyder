@@ -125,6 +125,28 @@ def sidebar() -> tuple[pd.DataFrame, pd.DataFrame, datetime, datetime, float]:
 #     return start, end, risk_free_rate
 
 
+@st.cache_data
+def get_data_from_yf(tickers, start, end):
+    adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+    return adj_daily_close
+
+
+@st.cache_data
+def calc_port_stats(adj_daily_close):
+    growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+    daily_returns = ps.get_daily_returns(adj_daily_close)
+    daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
+    # correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
+    expected_returns = ps.get_expected_returns(daily_ln_returns)
+    std_deviations = ps.get_std_deviations(daily_ln_returns)
+    #     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
+    #     inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
+    #     efficient_frontier = ef.get_efficient_frontier(
+    #         inv_and_constraints, risk_free_rate, adj_daily_close
+    #     )
+    return growth_of_10000, expected_returns, std_deviations
+
+
 def display_configuration() -> None:
     with st.expander(
         "Tickers, Investment Names, & Constraints (Click to Hide / Show)", expanded=True
@@ -145,11 +167,11 @@ def display_configuration() -> None:
         st.dataframe(df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"}))
 
 
-def display_growth_of_10000_df() -> None:
+def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> None:
     with st.expander("Growth of $10,000 Table (Click to Hide / Show)", expanded=True):
         tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
-        adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
-        growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+        # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+        # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
         columns = growth_of_10000.columns
         format_dict: dict[str, str] = {}
         for c in columns:
@@ -157,11 +179,13 @@ def display_growth_of_10000_df() -> None:
         st.dataframe(growth_of_10000.style.format(formatter=format_dict))
 
 
-def display_growth_of_10000_chart() -> None:
+def display_growth_of_10000_graph(
+    tickers_and_constraints, growth_of_10000: pd.DataFrame
+) -> None:
     with st.expander("Growth of $10,000 Graph (Click to Hide / Show)", expanded=True):
         tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
-        adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
-        growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+        # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
+        # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
         columns = growth_of_10000.columns
         format_dict: dict[str, str] = {}
         for c in columns:
@@ -173,8 +197,19 @@ def display_growth_of_10000_chart() -> None:
             title="Growth of $10,000",
             # color="Ticker"
         )
-        fig.update_layout(dict(yaxis_tickprefix = '$', yaxis_tickformat = ',.0f'))
+        fig.update_layout(dict(yaxis_tickprefix="$", yaxis_tickformat=",.0f"))
         st.plotly_chart(fig, use_container_width=True)
+
+
+def display_return_sd_table_and_graph() -> None:
+    with st.expander(
+        "Expected Return & Standard Deviation (Click to Show / Hide)", expanded=True
+    ):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("show table")
+        with col2:
+            st.write("show graph")
 
 
 if __name__ == "__main__":
@@ -186,9 +221,19 @@ if __name__ == "__main__":
         and st.session_state["dates_and_rf_rate_selected"]
     ):
         display_configuration()
-        display_growth_of_10000_df()
-        display_growth_of_10000_chart()
-
+        adj_daily_close = get_data_from_yf(
+            tickers_and_constraints["Ticker"].tolist(), start, end
+        )
+        (
+            growth_of_10000,
+            expected_returns,
+            std_deviations,
+        ) = calc_port_stats(adj_daily_close)
+        display_growth_of_10000_table(tickers_and_constraints, growth_of_10000)
+        display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
+        # TODO display_ret_std_table & graph
+        st.dataframe(expected_returns)
+        st.dataframe(std_deviations)
     # err, names = yf_api.get_investment_names(tickers)
     # if err != "":
     #     print(err)
