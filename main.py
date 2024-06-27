@@ -197,7 +197,15 @@ def display_growth_of_10000_graph(
             title="Growth of $10,000",
             # color="Ticker"
         )
-        fig.update_layout(dict(yaxis_tickprefix="$", yaxis_tickformat=",.0f"))
+        fig.update_layout(
+            title="Growth of $10,000",
+            title_x=0.5,
+            legend_title="Investment",
+            autosize=True,
+            height=800,
+            yaxis_tickprefix="$",
+            yaxis_tickformat=",",
+        )
         st.plotly_chart(fig, use_container_width=True)
 
 
