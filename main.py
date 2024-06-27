@@ -209,13 +209,16 @@ def display_growth_of_10000_graph(
         st.plotly_chart(fig, use_container_width=True)
 
 
-def display_return_sd_table_and_graph() -> None:
+def display_return_and_sd_table_and_graph(names,expected_returns, std_deviations) -> None:
     with st.expander(
         "Expected Return & Standard Deviation (Click to Show / Hide)", expanded=True
     ):
         col1, col2 = st.columns(2)
         with col1:
-            st.write("show table")
+            print(names)
+            st.markdown('##### Annual Return & Std Deviation for Each Investment')
+            df=pd.DataFrame({'Investment':names['Investment'],'Return':expected_returns,'Std Dev':std_deviations})
+            st.dataframe(df.style.format({"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
         with col2:
             st.write("show graph")
 
@@ -228,6 +231,7 @@ if __name__ == "__main__":
         st.session_state["xlsx_selected"]
         and st.session_state["dates_and_rf_rate_selected"]
     ):
+        print(names)
         display_configuration()
         adj_daily_close = get_data_from_yf(
             tickers_and_constraints["Ticker"].tolist(), start, end
@@ -240,8 +244,7 @@ if __name__ == "__main__":
         display_growth_of_10000_table(tickers_and_constraints, growth_of_10000)
         display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
         # TODO display_ret_std_table & graph
-        st.dataframe(expected_returns)
-        st.dataframe(std_deviations)
+        display_return_and_sd_table_and_graph(names, expected_returns,std_deviations)
     # err, names = yf_api.get_investment_names(tickers)
     # if err != "":
     #     print(err)
