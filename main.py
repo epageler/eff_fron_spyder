@@ -136,7 +136,7 @@ def calc_port_stats(adj_daily_close):
     growth_of_10000 = ps.get_growth_10000(adj_daily_close)
     daily_returns = ps.get_daily_returns(adj_daily_close)
     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
-    # correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
+    correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
     expected_returns = ps.get_expected_returns(daily_ln_returns)
     std_deviations = ps.get_std_deviations(daily_ln_returns)
     #     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
@@ -144,7 +144,7 @@ def calc_port_stats(adj_daily_close):
     #     efficient_frontier = ef.get_efficient_frontier(
     #         inv_and_constraints, risk_free_rate, adj_daily_close
     #     )
-    return growth_of_10000, expected_returns, std_deviations
+    return growth_of_10000, expected_returns, std_deviations, correlation_matrix
 
 
 def display_configuration(tickers_and_constraints, names) -> None:
@@ -199,7 +199,8 @@ def display_growth_of_10000_graph(
         )
         fig.update_layout(
             title="Growth of $10,000",
-            title_x=0.5,
+            title_font_size=24,
+            # title_x=0.5,
             legend_title="Investment",
             autosize=True,
             height=800,
@@ -213,7 +214,7 @@ def display_return_and_sd_table_and_graph(
     names, expected_returns, std_deviations
 ) -> None:
     with st.expander(
-        "Expected Return & Standard Deviation (Click to Show / Hide)", expanded=True
+        "Expected Return & Standard Deviation (Click to Hide / Show)", expanded=True
     ):
         df = pd.DataFrame(
             {
@@ -222,8 +223,8 @@ def display_return_and_sd_table_and_graph(
                 "Std Dev": std_deviations,
             }
         )
-        df=df.reset_index()
-        df=df.rename(columns={'index':'Ticker'})
+        df = df.reset_index()
+        df = df.rename(columns={"index": "Ticker"})
         col1, col2 = st.columns([6, 6])
         with col1:
             st.markdown("##### Annual Return vs Standard Deviation")
@@ -233,6 +234,7 @@ def display_return_and_sd_table_and_graph(
                 go.Scatter(
                     x=df["Std Dev"],
                     y=df["Return"],
+                    name="",
                     text=pd.Series(expected_returns).index,
                     mode="markers+text",
                     showlegend=False,
@@ -260,6 +262,40 @@ def display_return_and_sd_table_and_graph(
             st.plotly_chart(fig)
 
 
+def display_correlation_matrix(cm: pd.DataFrame) -> None:
+    with st.expander(
+        "Investment Correlation Matrix (Click to Hide / Show)", expanded=True
+    ):
+        # st.markdown("##### Investment Correlation Matrix")
+        # st.dataframe(cm)
+        cm=cm.round(decimals=2)
+        cm=cm[::-1]   # Reverse the df  Why does this work?
+        fig = go.FigureWidget(
+            data=go.Heatmap(
+                z=cm,
+                x=cm.index[::-1],   # Reverse the x-axis labels. Why does this work?
+                y=cm.index,
+                colorscale="RdBu_r",
+                texttemplate="%{z}",
+                zmin=-1,
+                zmax=1,
+            )
+        )
+
+        fig.update_traces()
+
+        fig.update_layout(
+            title="Investment Correlation Matrix",
+            title_font_size=24,
+            # title_x=0.5,
+            autosize=False,
+            width=900,
+            height=900,
+            font=dict(size=18)
+        )
+        st.plotly_chart(fig)
+
+
 if __name__ == "__main__":
     configure_page()
     overview()
@@ -272,15 +308,14 @@ if __name__ == "__main__":
         adj_daily_close = get_data_from_yf(
             tickers_and_constraints["Ticker"].tolist(), start, end
         )
-        (
-            growth_of_10000,
-            expected_returns,
-            std_deviations,
-        ) = calc_port_stats(adj_daily_close)
+        (growth_of_10000, expected_returns, std_deviations, correlation_matrix) = (
+            calc_port_stats(adj_daily_close)
+        )
         display_growth_of_10000_table(tickers_and_constraints, growth_of_10000)
         display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
         # TODO display_ret_std_table & graph
         display_return_and_sd_table_and_graph(names, expected_returns, std_deviations)
+        display_correlation_matrix(correlation_matrix)
     # err, names = yf_api.get_investment_names(tickers)
     # if err != "":
     #     print(err)
