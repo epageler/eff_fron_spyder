@@ -96,14 +96,19 @@ def sidebar() -> tuple[pd.DataFrame, pd.DataFrame, datetime, datetime, float]:
                 start_date = st.date_input(
                     "Select Start Date",
                     format="MM/DD/YYYY",
-                    value=datetime.today() - timedelta(1) - relativedelta(years=5),
+                    # value=datetime.today() - timedelta(1) - relativedelta(years=5),
+                    value=datetime(year=2007, month=5, day=29),
                 )
                 end_date = st.date_input(
                     "Select End Date",
                     format="MM/DD/YYYY",
-                    value=datetime.today() - timedelta(1),
+                    # value=datetime.today() - timedelta(1),
+                    value=datetime(year=2023, month=5, day=20),
                 )
-                rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
+                # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
+                rf_rate = st.number_input(
+                    "Specify Risk-Free Rate", min_value=0.00, value=3.70
+                )
                 calc_ef_button = st.form_submit_button(
                     "Calculate Efficient Frontier", on_click=dates_and_rf_rate_selected
                 )
@@ -115,14 +120,6 @@ def sidebar() -> tuple[pd.DataFrame, pd.DataFrame, datetime, datetime, float]:
                     st.session_state["dates_and_rf_rate_entered"] = False
 
         return tickers_and_constraints, names, start_date, end_date, rf_rate
-
-
-# def get_start_end_risk_free_rate(excel_file: str, sheet: str) -> Tuple[str, str, float]:
-#     df = pd.read_excel(excel_file, sheet_name="Dates & Risk Free Rate")
-#     start: str = df.loc[0, "Start Date"].strftime("%Y-%m-%d")
-#     end: str = df.loc[0, "End Date"].strftime("%Y-%m-%d")
-#     risk_free_rate: float = df.loc[0, "Risk Free Rate"]
-#     return start, end, risk_free_rate
 
 
 @st.cache_data
@@ -139,12 +136,19 @@ def calc_port_stats(adj_daily_close):
     correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
     expected_returns = ps.get_expected_returns(daily_ln_returns)
     std_deviations = ps.get_std_deviations(daily_ln_returns)
-    #     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
-    #     inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
-    #     efficient_frontier = ef.get_efficient_frontier(
-    #         inv_and_constraints, risk_free_rate, adj_daily_close
-    #     )
-    return growth_of_10000, expected_returns, std_deviations, correlation_matrix
+    cov_matrix = ps.get_cov_matrix(daily_ln_returns)
+    inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
+    efficient_frontier = ef.get_efficient_frontier(
+        tickers_and_constraints, risk_free_rate, adj_daily_close
+    )
+    efficient_frontier.rename(columns={"Risk": "Std Dev"}, inplace=True)
+    return (
+        growth_of_10000,
+        expected_returns,
+        std_deviations,
+        correlation_matrix,
+        efficient_frontier,
+    )
 
 
 def display_configuration(tickers_and_constraints, names) -> None:
@@ -268,12 +272,12 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
     ):
         # st.markdown("##### Investment Correlation Matrix")
         # st.dataframe(cm)
-        cm=cm.round(decimals=2)
-        cm=cm[::-1]   # Reverse the df  Why does this work?
+        cm = cm.round(decimals=2)
+        cm = cm[::-1]  # Reverse the df  Why does this work?
         fig = go.FigureWidget(
             data=go.Heatmap(
                 z=cm,
-                x=cm.index[::-1],   # Reverse the x-axis labels. Why does this work?
+                x=cm.index[::-1],  # Reverse the x-axis labels. Why does this work?
                 y=cm.index,
                 colorscale="RdBu_r",
                 texttemplate="%{z}",
@@ -289,16 +293,44 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
             title_font_size=24,
             # title_x=0.5,
             autosize=False,
-            width=900,
-            height=900,
-            font=dict(size=18)
+            width=800,
+            height=800,
+            font=dict(size=18),
         )
         st.plotly_chart(fig)
+
+
+def display_efficient_frontier(ef: pd.DataFrame):
+    st.markdown("##### Efficient Frontier")
+    st.dataframe(ef)
+    col1, col2 = st.columns(2)
+    with col1:
+        fig = go.Figure(
+            go.Scatter(
+                x=ef["Std Dev"],
+                y=ef["Return"],
+                name="Efficient Frontier",
+                mode="lines+markers",
+            )
+        )
+        fig.update_xaxes(rangemode='tozero')
+        fig.update_yaxes(rangemode='tozero')
+        fig.update_layout(height=600, width=600, title=dict(text="Efficient Frontier"))
+        fig.update_layout(
+            xaxis_title="Risk: Annual Standard Deviation (%)",
+            yaxis_title="Annual Return (%)",
+            xaxis=dict(tickformat=".2%"),
+            yaxis=dict(tickformat=".2%"),
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    with col2:
+        st.write("Display Portfolio for Selected Point on Efficient Frontier")
 
 
 if __name__ == "__main__":
     configure_page()
     overview()
+    # TODO in sidebar, change start, end, & risk free rate back 
     tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
     if (
         st.session_state["xlsx_selected"]
@@ -308,14 +340,18 @@ if __name__ == "__main__":
         adj_daily_close = get_data_from_yf(
             tickers_and_constraints["Ticker"].tolist(), start, end
         )
-        (growth_of_10000, expected_returns, std_deviations, correlation_matrix) = (
-            calc_port_stats(adj_daily_close)
-        )
+        (
+            growth_of_10000,
+            expected_returns,
+            std_deviations,
+            correlation_matrix,
+            efficient_frontier,
+        ) = calc_port_stats(adj_daily_close)
         display_growth_of_10000_table(tickers_and_constraints, growth_of_10000)
         display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
-        # TODO display_ret_std_table & graph
         display_return_and_sd_table_and_graph(names, expected_returns, std_deviations)
         display_correlation_matrix(correlation_matrix)
+        display_efficient_frontier(efficient_frontier)
     # err, names = yf_api.get_investment_names(tickers)
     # if err != "":
     #     print(err)

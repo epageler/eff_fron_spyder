@@ -94,7 +94,7 @@ def get_min_risk_portfolio(
                 inv_and_constraints.loc[i]["Max Weight"],
             )
         )
-    # Perform Optimizaiton
+    # Perform Optimization
     solution = minimize(
         portfolio_risk, guess, args=args, method="SLSQP", constraints=cons, bounds=bnds
     )
@@ -104,7 +104,7 @@ def get_min_risk_portfolio(
     p_ret = np.inner(portfolio, expected_returns)
     sharpe = (p_ret - risk_free_rate) / risk
 
-    # Construct entry for Efficieent Portfolio df
+    # Construct entry for Efficient Portfolio df
     eff_fron_point = [risk, p_ret, sharpe]
     for i in portfolio:
         eff_fron_point.append(i)
@@ -145,7 +145,7 @@ def get_max_return_portfolio(
                 inv_and_constraints.loc[i]["Max Weight"],
             )
         )
-    # Perform Optimizaiton
+    # Perform Optimization
     solution = minimize(
         neg_portfolio_return, guess, args=args, method="SLSQP", constraints=cons, bounds=bnds
     )
@@ -183,7 +183,7 @@ def get_target_return_portfolio(
     # args
     args = (expected_returns, cov, risk_free_rate)
 
-    # Set contraints
+    # Set constraints
     # Constraint #1
     def weights_total_one_hundred_pct(guess):
         return sum(guess) - 1
@@ -207,7 +207,7 @@ def get_target_return_portfolio(
                 inv_and_constraints.loc[i]["Max Weight"],
             )
         )
-    # Perform Optimizaiton
+    # Perform Optimization
     solution = minimize(
         std_deviation, guess, args=args, method="SLSQP", constraints=cons, bounds=bnds
     )
@@ -296,7 +296,7 @@ def get_efficient_frontier(
     eff_fron.loc[len(eff_fron)] = max_return_port
 
     # Get Portfolios to Add to Efficient Frontier by
-    # interating from minimum return to maximum return in 0.5% increments
+    # iterating from minimum return to maximum return in 0.5% increments
     INCR: float = 0.005
     min_ret = eff_fron["Return"].min()
     max_ret = eff_fron["Return"].max()
