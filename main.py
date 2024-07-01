@@ -137,9 +137,10 @@ def calc_port_stats(adj_daily_close):
     expected_returns = ps.get_expected_returns(daily_ln_returns)
     std_deviations = ps.get_std_deviations(daily_ln_returns)
     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
-    inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
+    # inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
+    print(risk_free_rate)
     efficient_frontier = ef.get_efficient_frontier(
-        tickers_and_constraints, risk_free_rate, adj_daily_close
+        tickers_and_constraints, risk_free_rate/100, adj_daily_close
     )
     efficient_frontier.rename(columns={"Risk": "Std Dev"}, inplace=True)
     return (
