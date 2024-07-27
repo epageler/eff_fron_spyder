@@ -25,9 +25,7 @@ def get_max_sharpe_portfolio(
     # ---------- Configure optimization ------------
     num_tickers = len(inv_and_constraints)
     # Initial guess
-    guess = pd.Series(
-        [1 / num_tickers] * num_tickers, index=inv_and_constraints["Ticker"]
-    )
+    guess=[1/len(inv_and_constraints)]*len(inv_and_constraints)
     # args
     args = (expected_returns, cov, risk_free_rate)
 
@@ -46,7 +44,6 @@ def get_max_sharpe_portfolio(
                 inv_and_constraints.loc[i]["Max Weight"],
             )
         )
-
     solution = minimize(
         neg_sharpe_ratio,
         guess,
@@ -83,9 +80,7 @@ def get_min_risk_portfolio(
 
     # Initial guess
     num_tickers = len(inv_and_constraints)
-    guess = pd.Series(
-        [1 / num_tickers] * num_tickers, index=inv_and_constraints["Ticker"]
-    )
+    guess = [1 / len(inv_and_constraints)] * len(inv_and_constraints)
     # args
     args = (expected_returns, cov, risk_free_rate)
 
@@ -142,9 +137,7 @@ def get_max_return_portfolio(
 
     # Initial guess
     num_tickers = len(inv_and_constraints)
-    guess = pd.Series(
-        [1 / num_tickers] * num_tickers, index=inv_and_constraints["Ticker"]
-    )
+    guess = [1 / len(inv_and_constraints)] * len(inv_and_constraints)
     # args
     args = (expected_returns,)
 
@@ -171,7 +164,7 @@ def get_max_return_portfolio(
         method="SLSQP",
         constraints=cons,
         bounds=bnds,
-        tol=1e-10
+        tol=1e-10,
     )
     # Retrieve results of optimization
     p_ret = -solution.fun
@@ -203,9 +196,7 @@ def get_target_return_portfolio(
 
     # Initial guess
     num_tickers = len(inv_and_constraints)
-    guess = pd.Series(
-        [1 / num_tickers] * num_tickers, index=inv_and_constraints["Ticker"]
-    )
+    guess = [1 / len(inv_and_constraints)] * len(inv_and_constraints)
     # args
     args = (expected_returns, cov, risk_free_rate)
 

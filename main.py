@@ -14,6 +14,7 @@ if "init" not in st.session_state:
     st.session_state["init"] = True
     st.session_state["xlsx_selected"] = False
     st.session_state["dates_and_rf_rate_selected"] = False
+    st.session_state["selected_portfolio"] = None
 
 
 def configure_page() -> None:
@@ -96,14 +97,14 @@ def sidebar() -> tuple[pd.DataFrame, pd.DataFrame, datetime, datetime, float]:
                 start_date = st.date_input(
                     "Select Start Date",
                     format="MM/DD/YYYY",
-                    # value=datetime.today() - timedelta(1) - relativedelta(years=5),
-                    value=datetime(year=2007, month=5, day=29),
+                    value=datetime.today() - timedelta(1) - relativedelta(years=5),
+                    # value=datetime(year=2007, month=5, day=29),  # for testing youtube
                 )
                 end_date = st.date_input(
                     "Select End Date",
                     format="MM/DD/YYYY",
-                    # value=datetime.today() - timedelta(1),
-                    value=datetime(year=2023, month=5, day=20),
+                    value=datetime.today() - timedelta(1),
+                    # value=datetime(year=2023, month=5, day=20),   # for testing youtube
                 )
                 # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
                 rf_rate = st.number_input(
@@ -138,9 +139,8 @@ def calc_port_stats(adj_daily_close):
     std_deviations = ps.get_std_deviations(daily_ln_returns)
     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
     # inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
-    print(risk_free_rate)
     efficient_frontier = ef.get_efficient_frontier(
-        tickers_and_constraints, risk_free_rate/100, adj_daily_close
+        tickers_and_constraints, risk_free_rate / 100, adj_daily_close
     )
     efficient_frontier.rename(columns={"Risk": "Std Dev"}, inplace=True)
     return (
@@ -256,7 +256,7 @@ def display_return_and_sd_table_and_graph(
                 # title="Standard Deviation vs Return",
                 # title_x=0.25,
                 xaxis_title="Annual Std Deviation (Risk)",
-                yaxis_title="Annual Return (%)",
+                yaxis_title="Annual Return",
                 xaxis=dict(tickformat=".2%"),
                 yaxis=dict(tickformat=".2%"),
                 autosize=False,
@@ -303,7 +303,56 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
 
 def display_efficient_frontier(ef: pd.DataFrame):
     st.markdown("##### Efficient Frontier")
-    st.dataframe(ef)
+
+    def set_portfolio(abs_value, inc_value):
+        if abs_value == None:
+            st.session_state["selected_portfolio"] += inc_value
+            if st.session_state["selected_portfolio"] < 0:
+                st.session_state["selected_portfolio"] = 0
+            if st.session_state["selected_portfolio"] > len(ef.index):
+                st.session_state["selected_portfolio"] = len(ef.index)
+        else:
+            st.session_state["selected_portfolio"] = abs_value
+        print(
+            st.session_state[
+                "FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"
+            ]
+        )
+
+    col1, col2, col3, col4, col5 = st.columns(5)
+    with col1:
+        st.button(
+            "Min Risk Portfolio", on_click=set_portfolio, args=(0, None), type="primary"
+        )
+    with col2:
+        st.button(
+            "Reduce Risk & Return",
+            on_click=set_portfolio,
+            args=(None, -1),
+            type="primary",
+        )
+    with col3:
+        st.button(
+            "Max Sharpe Portfolio",
+            on_click=set_portfolio,
+            args=(ef["Sharpe"].idxmax(), None),
+            type="primary",
+        )
+    with col4:
+        st.button(
+            "Increase Risk & Return",
+            on_click=set_portfolio,
+            args=(None, 1),
+            type="primary",
+        )
+    with col5:
+        st.button(
+            "Max Risk & Return",
+            on_click=set_portfolio,
+            args=(len(ef.index), None),
+            type="primary",
+        )
+
     col1, col2 = st.columns(2)
     with col1:
         fig = go.Figure(
@@ -314,24 +363,52 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 mode="lines+markers",
             )
         )
-        fig.update_xaxes(rangemode='tozero')
-        fig.update_yaxes(rangemode='tozero')
+        # fig.add_trace(
+        #     go.Scatter(
+        #         x=[portfolio_with_max_sharpe["Std Dev"]],
+        #         y=[portfolio_with_max_sharpe["Return"]],
+        #         name="Max Sharpe Ratio",
+        #         marker=dict(color="red", size=10),
+        #         mode="markers",
+        #     )
+        # )
+        # fig.add_trace(
+        #     go.Scatter(
+        #         x=[selected_portfolio["Std Dev"]],
+        #         y=[selected_portfolio["Return"]],
+        #         name="Selected Portfolio",
+        #         marker=dict(
+        #             size=25,
+        #             symbol="diamond",
+        #             line=dict(width=2, color="green"),
+        #             opacity=0.5,
+        #         ),
+        #     )
+        # )
+
+        fig.update_xaxes(rangemode="tozero")
+        fig.update_yaxes(rangemode="tozero")
         fig.update_layout(height=600, width=600, title=dict(text="Efficient Frontier"))
         fig.update_layout(
-            xaxis_title="Risk: Annual Standard Deviation (%)",
-            yaxis_title="Annual Return (%)",
+            xaxis_title="Annual Standard Deviation (Risk)",
+            yaxis_title="Annual Return",
             xaxis=dict(tickformat=".2%"),
             yaxis=dict(tickformat=".2%"),
         )
         st.plotly_chart(fig, use_container_width=True)
     with col2:
         st.write("Display Portfolio for Selected Point on Efficient Frontier")
+    st.divider()
+    format_dict: dict[str, str] = {}
+    for c in ef.columns:
+        format_dict[c] = "{:.2%}"
+    st.dataframe(ef.style.format(formatter=format_dict))
 
 
 if __name__ == "__main__":
     configure_page()
     overview()
-    # TODO in sidebar, change start, end, & risk free rate back 
+    st.write(st.session_state)
     tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
     if (
         st.session_state["xlsx_selected"]
@@ -348,6 +425,7 @@ if __name__ == "__main__":
             correlation_matrix,
             efficient_frontier,
         ) = calc_port_stats(adj_daily_close)
+        st.session_state["selected_portfolio"] = efficient_frontier["Sharpe"].idxmax()
         display_growth_of_10000_table(tickers_and_constraints, growth_of_10000)
         display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
         display_return_and_sd_table_and_graph(names, expected_returns, std_deviations)
@@ -369,4 +447,11 @@ if __name__ == "__main__":
     #     )
     #     st.dataframe(growth_of_10000)
     #     st.dataframe(correlation_matrix)
-# st.write(st.session_state)
+st.write(st.session_state)
+
+if (
+    "FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"
+    in st.session_state
+):
+    # print(st.session_state["FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"])
+    pass
