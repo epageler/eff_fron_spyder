@@ -17,7 +17,7 @@ def init_session_state() -> None:
     st.session_state.start_date = None
     st.session_state.end_date = None
     st.session_state.rf_rate = None
-    st.session_state.adj_daily_close=pd.DataFrame()
+    st.session_state.adj_daily_close = pd.DataFrame()
     st.session_state.growth_of_10000 = pd.DataFrame()
     st.session_state.expected_returns = pd.DataFrame()
     st.session_state.std_deviations = pd.DataFrame()
@@ -48,7 +48,7 @@ def sidebar():
         st.session_state.start_date = None
         st.session_state.end_date = None
         st.session_state.rf_rate = None
-        st.session_state.adj_daily_close=pd.DataFrame()
+        st.session_state.adj_daily_close = pd.DataFrame()
         st.session_state.growth_of_10000 = pd.DataFrame()
         st.session_state.expected_returns = pd.DataFrame()
         st.session_state.std_deviations = pd.DataFrame()
@@ -64,7 +64,8 @@ def sidebar():
     with st.sidebar:
         st.markdown("# Configure Analysis")
         st.markdown("### Step 1: Select Excel File with Tickers & Constraints")
-        options: list[str] = ["Major Asset Classes", "Industry Sectors", "Custom"]
+        options: list[str] = ["Major Asset Classes",
+                              "Industry Sectors", "Custom"]
         opt = st.selectbox("Select Scenario", options, index=None)
         if opt == options[0]:
             st.session_state.tickers_and_constraints = pd.read_excel(
@@ -86,14 +87,16 @@ def sidebar():
         if not st.session_state.tickers_and_constraints.equals(pd.DataFrame()):
             # Check if all tickers are valid
             err, names_and_inceptions = yf_api.get_names_and_inceptions(
-                tickers=st.session_state.tickers_and_constraints["Ticker"].tolist()
+                tickers=st.session_state.tickers_and_constraints["Ticker"].tolist(
+                )
             )
             if err != "":
                 st.error(f"Error! {err}")
                 reset_all()
             else:
                 st.session_state.names_and_inceptions = names_and_inceptions
-                st.markdown("### Step 2: Select Start Date, End Date, & Risk Free Rate")
+                st.markdown(
+                    "### Step 2: Select Start Date, End Date, & Risk Free Rate")
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
                         "Select Start Date",
@@ -116,7 +119,8 @@ def sidebar():
                     )
                 if calc_ef_button:
                     if end_date < start_date:
-                        st.error("Error! Start Date must be less than End Date.")
+                        st.error(
+                            "Error! Start Date must be less than End Date.")
                         reset_start_end_and_rf_rate()
                     else:
                         st.session_state.start_date = start_date
@@ -125,9 +129,8 @@ def sidebar():
 
 
 @st.cache_data
-def get_data_from_yf(tickers:list,start,end):
+def get_data_from_yf(tickers: list, start, end):
     return yf_api.get_adj_daily_close(tickers, start, end)
-
 
 
 @st.cache_data
@@ -164,11 +167,14 @@ def display_configuration() -> None:
             st.markdown("#### Analysis Configuration:")
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.markdown(f"###### History Start Date: {st.session_state.start_date.strftime("%Y-%m-%d")}")
+                st.markdown(f"###### History Start Date: {
+                            st.session_state.start_date.strftime("%Y-%m-%d")}")
             with col2:
-                st.markdown(f"###### History End Date: {st.session_state.end_date.strftime("%Y-%m-%d")}")
+                st.markdown(f"###### History End Date: {
+                            st.session_state.end_date.strftime("%Y-%m-%d")}")
             with col3:
-                st.markdown(f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
+                st.markdown(
+                    f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
             st.markdown("###### Investments & Constraints:")
             df2: pd.DataFrame = st.session_state.names_and_inceptions
             df2["Inception"] = df2["Inception"].dt.strftime("%Y-%m-%d")
@@ -211,7 +217,7 @@ def display_growth_of_10000_graph(
         fig = px.line(
             growth_of_10000,
             x=growth_of_10000.index,
-            y=growth_of_10000.columns[0 : len(growth_of_10000.columns)],
+            y=growth_of_10000.columns[0: len(growth_of_10000.columns)],
             title="Growth of $10,000",
             # color="Ticker"
         )
@@ -236,7 +242,7 @@ def display_return_and_sd_table_and_graph(
     ):
         df = pd.DataFrame(
             {
-                "Investment": names_and_inceptions["Investment"],
+                "Investment": names_and_inceptions["Name"],
                 "Return": expected_returns,
                 "Std Dev": std_deviations,
             }
@@ -246,7 +252,8 @@ def display_return_and_sd_table_and_graph(
         col1, col2 = st.columns([6, 6])
         with col1:
             st.markdown("##### Annual Return vs Standard Deviation")
-            st.dataframe(df.style.format({"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
+            st.dataframe(df.style.format(
+                {"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
         with col2:
             fig = go.Figure(
                 go.Scatter(
@@ -291,7 +298,8 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
         fig = go.FigureWidget(
             data=go.Heatmap(
                 z=cm,
-                x=cm.index[::-1],  # Reverse the x-axis labels. Why does this work?
+                # Reverse the x-axis labels. Why does this work?
+                x=cm.index[::-1],
                 y=cm.index,
                 colorscale="RdBu_r",
                 texttemplate="%{z}",
@@ -401,7 +409,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
 
         fig.update_xaxes(rangemode="tozero")
         fig.update_yaxes(rangemode="tozero")
-        fig.update_layout(height=600, width=600, title=dict(text="Efficient Frontier"))
+        fig.update_layout(height=600, width=600,
+                          title=dict(text="Efficient Frontier"))
         fig.update_layout(
             xaxis_title="Annual Standard Deviation (Risk)",
             yaxis_title="Annual Return",
@@ -429,12 +438,15 @@ if __name__ == "__main__":
     overview()
     sidebar()
     display_configuration()
-    
+
     # Once Analysis is Configured (Indicated by History End Date being specified)
-    if st.session_state.end_date!=None:
+    if st.session_state.end_date != None:
         # Get Adjust Daily Close Prices
-        st.session_state.adj_daily_close=get_data_from_yf(st.session_state.tickers_and_constraints["Ticker"].tolist(),st.session_state.start_date,st.session_state.end_date)
-        
+        st.session_state.adj_daily_close = get_data_from_yf(
+            st.session_state.tickers_and_constraints["Ticker"].tolist(),
+            st.session_state.start_date,
+            st.session_state.end_date)
+
        # Calculate Portfolio Statistics based on Adjust Daily Closing Prices
         (
             st.session_state.growth_of_10000,
@@ -443,11 +455,18 @@ if __name__ == "__main__":
             st.session_state.correlation_matrix,
             st.session_state.efficient_frontier,
         ) = calc_port_stats(st.session_state.adj_daily_close)
-        
-        display_growth_of_10000_table(st.session_state.tickers_and_constraints, st.session_state.growth_of_10000)
-        display_growth_of_10000_graph(st.session_state.tickers_and_constraints, st.session_state.growth_of_10000)
-        # display_return_and_sd_table_and_graph(names_and_inceptions, expected_returns, std_deviations)
-        # display_correlation_matrix(correlation_matrix)
+
+        display_growth_of_10000_table(
+            st.session_state.tickers_and_constraints,
+            st.session_state.growth_of_10000)
+        display_growth_of_10000_graph(
+            st.session_state.tickers_and_constraints,
+            st.session_state.growth_of_10000)
+        display_return_and_sd_table_and_graph(
+            st.session_state.names_and_inceptions,
+            st.session_state.expected_returns,
+            st.session_state.std_deviations)
+        display_correlation_matrix(st.session_state.correlation_matrix)
         # display_efficient_frontier(efficient_frontier)
 
 st.write(st.session_state)
