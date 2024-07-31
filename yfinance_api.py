@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf  # type: ignore
 import streamlit as st
+from pprint import pprint
 
 
 # ---------------------------------------------------------------------------- #
@@ -42,9 +43,63 @@ def get_investment_names(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
     return err, investment_names
 
 
+def get_max_inception_date(tickers: list[str]) -> datetime:
+    """Returns max inception date from a list of investments
+
+    Args:
+        tickers (list[str]): list of investment tickers
+
+    Returns:
+        datetime: maximum inception date in Epoch UTC
+    """
+    max_inception_date: datetime = 0
+    for t in tickers:
+        d = yf.Ticker(t).info["firstTradeDateEpochUtc"]
+        if d > max_inception_date:
+            max_inception_date = d
+    return max_inception_date
+
+
+def get_names_and_inceptions(tickers: list[str]) -> Tuple[str, pd.DataFrame]:
+    """
+    Retrieve investment names and inception dates for list of tickers.
+
+    If invalid ticker is in list, err contains an error message with the invalid ticker and the returned df is empty.
+
+    Args:
+        tickers (list[str]): list of tickers
+
+    Returns:
+        str:
+            If an invalid ticker is included in list, message specify
+            invalid ticker. Empty string if no errors.
+        pd.DataFrame:
+            Column Heading(s): Name, Inception
+            Index: ticker
+            df Contents:
+                Long Name for each investment. Inception Date for each investment as datetime object.
+                Empty df if errors.
+    """
+    err = ""
+    names_inception = pd.DataFrame()
+    for t in tickers:
+        try:
+            info = yf.Ticker(t).info
+            names_inception.loc[t, "Name"] = info["longName"]
+            d = info["firstTradeDateEpochUtc"]
+            names_inception.loc[t, "Inception"] = d
+        except:
+            err = f"Invalid Ticker: {t}"
+            investment_names = pd.DataFrame()  # return empty df if error
+            return err, investment_names  # return immediately if error
+    if err == "":
+        names_inception["Inception"] = pd.to_datetime(names_inception['Inception'],unit='s',utc=True)
+    return err, names_inception
+
+
 # ---------------------------------------------------------------------------- #
 def get_adj_daily_close(
-    tickers: list[str], start_date: str|datetime, end_date: str|datetime
+    tickers: list[str], start_date: str | datetime, end_date: str | datetime
 ) -> pd.DataFrame:
     """
     Retrieve adjusted daily closing prices for a list of tickers over a specified
@@ -74,11 +129,25 @@ def get_adj_daily_close(
 # ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
     tickers = ["BIL", "AGG", "TIP", "MUB", "PFF", "IVV", "IWM", "EFA", "EEM", "IYR"]
-    start: str = "2023-05-30"
-    end: str = "2024-05-30"
+    # start: str = "2023-05-30"
+    # end: str = "2024-05-30"
 
-    err, names = get_investment_names(tickers)
-    if err != "":
-        print(err)
-    else:
-        adj_daily_close = get_adj_daily_close(tickers, start, end)
+    # err, names = get_investment_names(tickers)
+    # if err != "":
+    #     print(err)
+    # else:
+    #     adj_daily_close = get_adj_daily_close(tickers, start, end)
+    #     print(adj_daily_close.head(10))
+    # -------------------------------------
+    # d=get_max_inception_date(["BIL", "MSFT", "DREGX"])
+    # print(d)
+    # t=datetime.fromtimestamp(d)
+    # print(t.strftime('%m/%d/%Y'))
+    # --------------------------------------
+    err, df = get_names_and_inceptions(tickers)
+    # df["Inception"] = pd.to_datetime(df["Inception"], unit="s", utc=True).dt.strftime(
+    #     "%Y-%m-%d"
+    # )
+    # df["Inception"] = pd.to_datetime(df["Inception"], unit="s", utc=True)
+    print(df.info())
+    print(df)
