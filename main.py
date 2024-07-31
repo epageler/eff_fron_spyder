@@ -445,7 +445,7 @@ if __name__ == "__main__":
         ) = calc_port_stats(st.session_state.adj_daily_close)
         
         display_growth_of_10000_table(st.session_state.tickers_and_constraints, st.session_state.growth_of_10000)
-        # display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
+        display_growth_of_10000_graph(st.session_state.tickers_and_constraints, st.session_state.growth_of_10000)
         # display_return_and_sd_table_and_graph(names_and_inceptions, expected_returns, std_deviations)
         # display_correlation_matrix(correlation_matrix)
         # display_efficient_frontier(efficient_frontier)
