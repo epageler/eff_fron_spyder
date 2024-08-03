@@ -325,20 +325,18 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
 def display_efficient_frontier(ef: pd.DataFrame):
     st.markdown("##### Efficient Frontier")
 
+    if st.session_state.selected_port == None:
+        st.session_state.selected_port=ef['Sharpe'].idxmax()
+
     def set_portfolio(abs_value, inc_value):
         if abs_value == None:
-            st.session_state["selected_portfolio"] += inc_value
-            if st.session_state["selected_portfolio"] < 0:
-                st.session_state["selected_portfolio"] = 0
-            if st.session_state["selected_portfolio"] > len(ef.index):
-                st.session_state["selected_portfolio"] = len(ef.index)
+            st.session_state.selected_port += inc_value
+            if st.session_state.selected_port < 0:
+                st.session_state.selected_port = 0
+            if st.session_state.selected_port > (len(ef)-1):
+                st.session_state.selected_port = len(ef)-1
         else:
-            st.session_state["selected_portfolio"] = abs_value
-        print(
-            st.session_state[
-                "FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"
-            ]
-        )
+            st.session_state.selected_port = abs_value
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -370,12 +368,16 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.button(
             "Max Risk & Return",
             on_click=set_portfolio,
-            args=(len(ef.index), None),
+            args=(len(ef.index)-1, None),
             type="primary",
         )
 
     col1, col2 = st.columns(2)
     with col1:
+        selected_port_std_dev=ef.iloc[st.session_state.selected_port]["Std Dev"]
+        selected_port_return=ef.iloc[st.session_state.selected_port]["Return"]
+        selected_port_sharpe= ef.iloc[st.session_state.selected_port]["Sharpe"]
+
         fig = go.Figure(
             go.Scatter(
                 x=ef["Std Dev"],
@@ -384,28 +386,28 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 mode="lines+markers",
             )
         )
-        # fig.add_trace(
-        #     go.Scatter(
-        #         x=[portfolio_with_max_sharpe["Std Dev"]],
-        #         y=[portfolio_with_max_sharpe["Return"]],
-        #         name="Max Sharpe Ratio",
-        #         marker=dict(color="red", size=10),
-        #         mode="markers",
-        #     )
-        # )
-        # fig.add_trace(
-        #     go.Scatter(
-        #         x=[selected_portfolio["Std Dev"]],
-        #         y=[selected_portfolio["Return"]],
-        #         name="Selected Portfolio",
-        #         marker=dict(
-        #             size=25,
-        #             symbol="diamond",
-        #             line=dict(width=2, color="green"),
-        #             opacity=0.5,
-        #         ),
-        #     )
-        # )
+        fig.add_trace(
+            go.Scatter(
+                x=[ef.iloc[ef['Sharpe'].idxmax()]['Std Dev']],
+                y=[ef.iloc[ef['Sharpe'].idxmax()]['Return']],
+                name="Max Sharpe Ratio",
+                marker=dict(color="red", size=10),
+                mode="markers",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[ef.iloc[st.session_state.selected_port]["Std Dev"]],
+                y=[ef.iloc[st.session_state.selected_port]["Return"]],
+                name="Selected Portfolio",
+                marker=dict(
+                    size=25,
+                    symbol="diamond",
+                    line=dict(width=2, color="green"),
+                    opacity=0.5,
+                ),
+            )
+        )
 
         fig.update_xaxes(rangemode="tozero")
         fig.update_yaxes(rangemode="tozero")
@@ -418,13 +420,22 @@ def display_efficient_frontier(ef: pd.DataFrame):
             yaxis=dict(tickformat=".2%"),
         )
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown('**Statistics of Selected Portfolio:**')
+        st.text(f"Std Dev {selected_port_std_dev:.2%}   Return: {selected_port_return:.2%}   Sharpe Ratio: {selected_port_sharpe:.2}")
     with col2:
         st.write("Display Portfolio for Selected Point on Efficient Frontier")
+        df=ef.iloc[st.session_state.selected_port]
+        selected_port_tickers=df.index.tolist()[3:]
+        selected_port_diversification=df.iloc[3:len(df)]
+        fig=go.Figure(data=[go.Pie(labels=selected_port_tickers,values=selected_port_diversification,sort=False,direction='clockwise')])
+        st.plotly_chart(fig,use_container_width=True)
+        
+        
     st.divider()
-    format_dict: dict[str, str] = {}
-    for c in ef.columns:
-        format_dict[c] = "{:.2%}"
-    st.dataframe(ef.style.format(formatter=format_dict))
+    # format_dict: dict[str, str] = {}
+    # for c in ef.columns:
+    #     format_dict[c] = "{:.2%}"
+    # st.dataframe(ef.style.format(formatter=format_dict))
 
 
 if __name__ == "__main__":
@@ -456,9 +467,9 @@ if __name__ == "__main__":
             st.session_state.efficient_frontier,
         ) = calc_port_stats(st.session_state.adj_daily_close)
 
-        display_growth_of_10000_table(
-            st.session_state.tickers_and_constraints,
-            st.session_state.growth_of_10000)
+        # display_growth_of_10000_table(
+        #     st.session_state.tickers_and_constraints,
+        #     st.session_state.growth_of_10000)
         display_growth_of_10000_graph(
             st.session_state.tickers_and_constraints,
             st.session_state.growth_of_10000)
@@ -467,6 +478,6 @@ if __name__ == "__main__":
             st.session_state.expected_returns,
             st.session_state.std_deviations)
         display_correlation_matrix(st.session_state.correlation_matrix)
-        # display_efficient_frontier(efficient_frontier)
+        display_efficient_frontier(st.session_state.efficient_frontier)
 
-st.write(st.session_state)
+# st.write(st.session_state)
