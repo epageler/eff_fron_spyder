@@ -60,10 +60,12 @@ def sidebar():
         st.session_state.start_date = None
         st.session_state.end_date = None
         st.session_state.rf_rate = None
+        st.session_state.selected_port = None
 
     with st.sidebar:
         st.markdown("# Configure Analysis")
         st.markdown("### Step 1: Select Excel File with Tickers & Constraints")
+        old_tickers_and_constraints = st.session_state.tickers_and_constraints
         options: list[str] = ["Major Asset Classes",
                               "Industry Sectors", "Custom"]
         opt = st.selectbox("Select Scenario", options, index=None)
@@ -82,6 +84,8 @@ def sidebar():
                 st.session_state.tickers_and_constraints = pd.read_excel(f)
         else:
             reset_all()
+        if not st.session_state.tickers_and_constraints.equals(old_tickers_and_constraints):
+            reset_start_end_and_rf_rate()
 
         # Once Excel File has been selected
         if not st.session_state.tickers_and_constraints.equals(pd.DataFrame()):
@@ -168,7 +172,7 @@ def display_configuration() -> None:
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.markdown(f"###### History Start Date: {
-                            st.session_state.start_date.strftime("%Y-%m-%d")}")
+                            st.session_state.start_date.strftime('%Y-%m-%d')}")
             with col2:
                 st.markdown(f"###### History End Date: {
                             st.session_state.end_date.strftime("%Y-%m-%d")}")
@@ -326,7 +330,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
     st.markdown("##### Efficient Frontier")
 
     if st.session_state.selected_port == None:
-        st.session_state.selected_port=ef['Sharpe'].idxmax()
+        st.session_state.selected_port = ef['Sharpe'].idxmax()
 
     def set_portfolio(abs_value, inc_value):
         if abs_value == None:
@@ -374,9 +378,9 @@ def display_efficient_frontier(ef: pd.DataFrame):
 
     col1, col2 = st.columns(2)
     with col1:
-        selected_port_std_dev=ef.iloc[st.session_state.selected_port]["Std Dev"]
-        selected_port_return=ef.iloc[st.session_state.selected_port]["Return"]
-        selected_port_sharpe= ef.iloc[st.session_state.selected_port]["Sharpe"]
+        selected_port_std_dev = ef.iloc[st.session_state.selected_port]["Std Dev"]
+        selected_port_return = ef.iloc[st.session_state.selected_port]["Return"]
+        selected_port_sharpe = ef.iloc[st.session_state.selected_port]["Sharpe"]
 
         fig = go.Figure(
             go.Scatter(
@@ -421,16 +425,17 @@ def display_efficient_frontier(ef: pd.DataFrame):
         )
         st.plotly_chart(fig, use_container_width=True)
         st.markdown('**Statistics of Selected Portfolio:**')
-        st.text(f"Std Dev {selected_port_std_dev:.2%}   Return: {selected_port_return:.2%}   Sharpe Ratio: {selected_port_sharpe:.2}")
+        st.text(f"Std Dev {selected_port_std_dev:.2%}   Return: {
+                selected_port_return:.2%}   Sharpe Ratio: {selected_port_sharpe:.2}")
     with col2:
         st.write("Display Portfolio for Selected Point on Efficient Frontier")
-        df=ef.iloc[st.session_state.selected_port]
-        selected_port_tickers=df.index.tolist()[3:]
-        selected_port_diversification=df.iloc[3:len(df)]
-        fig=go.Figure(data=[go.Pie(labels=selected_port_tickers,values=selected_port_diversification,sort=False,direction='clockwise')])
-        st.plotly_chart(fig,use_container_width=True)
-        
-        
+        df = ef.iloc[st.session_state.selected_port]
+        selected_port_tickers = df.index.tolist()[3:]
+        selected_port_diversification = df.iloc[3:len(df)]
+        fig = go.Figure(data=[go.Pie(labels=selected_port_tickers,
+                        values=selected_port_diversification, sort=False, direction='clockwise')])
+        st.plotly_chart(fig, use_container_width=True)
+
     st.divider()
     # format_dict: dict[str, str] = {}
     # for c in ef.columns:
