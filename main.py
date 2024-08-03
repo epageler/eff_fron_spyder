@@ -43,6 +43,7 @@ def overview() -> None:
 
 def sidebar():
     def reset_all() -> None:
+        print('reset all')
         st.session_state.tickers_and_constraints = pd.DataFrame()
         st.session_state.names_and_inceptions = pd.DataFrame()
         st.session_state.start_date = None
@@ -78,7 +79,6 @@ def sidebar():
                 "./data/industry_sectors.xlsx"
             )
         elif opt == options[2]:
-            reset_all()
             f = st.file_uploader("Select Excel File")
             if f:
                 st.session_state.tickers_and_constraints = pd.read_excel(f)
@@ -485,4 +485,4 @@ if __name__ == "__main__":
         display_correlation_matrix(st.session_state.correlation_matrix)
         display_efficient_frontier(st.session_state.efficient_frontier)
 
-# st.write(st.session_state)
+st.write(st.session_state)
