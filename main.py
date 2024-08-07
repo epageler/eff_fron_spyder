@@ -43,7 +43,6 @@ def overview() -> None:
 
 def sidebar():
     def reset_all() -> None:
-        print('reset all')
         st.session_state.tickers_and_constraints = pd.DataFrame()
         st.session_state.names_and_inceptions = pd.DataFrame()
         st.session_state.start_date = None
@@ -101,18 +100,26 @@ def sidebar():
                 st.session_state.names_and_inceptions = names_and_inceptions
                 st.markdown(
                     "### Step 2: Select Start Date, End Date, & Risk Free Rate")
+                # Find latest inception date
+                df=names_and_inceptions
+                max_inception_date=df.loc[df.loc[:,'Inception'].idxmax(),"Inception"].date()
+                print(max_inception_date)
+                print(type(max_inception_date))
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
                         "Select Start Date",
                         format="MM/DD/YYYY",
                         value=datetime.today() - timedelta(1) - relativedelta(years=5),
-                        # value=datetime(year=2007, month=5, day=29),  # for testing youtube
+                        # for testing youtube
+                        # value=datetime(year=2007, month=5, day=29),
+                        min_value=max_inception_date
                     )
                     end_date = st.date_input(
                         "Select End Date",
                         format="MM/DD/YYYY",
                         value=datetime.today() - timedelta(1),
-                        # value=datetime(year=2023, month=5, day=20),   # for testing youtube
+                        # for testing youtube
+                        # value=datetime(year=2023, month=5, day=20),
                     )
                     # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
                     rf_rate = st.number_input(
@@ -124,12 +131,15 @@ def sidebar():
                 if calc_ef_button:
                     if end_date < start_date:
                         st.error(
-                            "Error! Start Date must be less than End Date.")
+                            "Invalid! Start Date must be less than End Date.")
                         reset_start_end_and_rf_rate()
+                    elif start_date<max_inception_date:
+                        st.error(f"Invalid! Start Date cannot be precede latest inception date of {max_inception_date}.")
                     else:
                         st.session_state.start_date = start_date
                         st.session_state.end_date = end_date
                         st.session_state.rf_rate = rf_rate
+                        st.session_state.selected_port=None
 
 
 @st.cache_data
@@ -436,11 +446,11 @@ def display_efficient_frontier(ef: pd.DataFrame):
                         values=selected_port_diversification, sort=False, direction='clockwise')])
         st.plotly_chart(fig, use_container_width=True)
 
-    st.divider()
-    # format_dict: dict[str, str] = {}
-    # for c in ef.columns:
-    #     format_dict[c] = "{:.2%}"
-    # st.dataframe(ef.style.format(formatter=format_dict))
+    with st.expander("Efficient Frontier Table (Click to Hide / Show)",expanded=False):
+        format_dict: dict[str, str]={}
+        for c in ef.columns:
+            format_dict[c]="{:.2%}"
+        st.dataframe(ef.style.format(formatter=format_dict))
 
 
 if __name__ == "__main__":
@@ -458,7 +468,7 @@ if __name__ == "__main__":
     # Once Analysis is Configured (Indicated by History End Date being specified)
     if st.session_state.end_date != None:
         # Get Adjust Daily Close Prices
-        st.session_state.adj_daily_close = get_data_from_yf(
+        st.session_state.adj_daily_close=get_data_from_yf(
             st.session_state.tickers_and_constraints["Ticker"].tolist(),
             st.session_state.start_date,
             st.session_state.end_date)
@@ -470,7 +480,7 @@ if __name__ == "__main__":
             st.session_state.std_deviations,
             st.session_state.correlation_matrix,
             st.session_state.efficient_frontier,
-        ) = calc_port_stats(st.session_state.adj_daily_close)
+        )=calc_port_stats(st.session_state.adj_daily_close)
 
         # display_growth_of_10000_table(
         #     st.session_state.tickers_and_constraints,
