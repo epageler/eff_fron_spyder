@@ -102,9 +102,11 @@ def sidebar():
                     "### Step 2: Select Start Date, End Date, & Risk Free Rate")
                 # Find latest inception date
                 df=names_and_inceptions
-                max_inception_date=df.loc[df.loc[:,'Inception'].idxmax(),"Inception"].date()
-                print(max_inception_date)
-                print(type(max_inception_date))
+                max_inception_date:datetime=df.loc[df.loc[:,'Inception'].idxmax(),"Inception"].date()
+                df=st.session_state.tickers_and_constraints
+                min_weight:float=df.loc[df.loc[:,'Min Weight'].idxmin(),'Min Weight']
+                max_weight:float=df.loc[df.loc[:,'Max Weight'].idxmax(),'Max Weight']
+                min_less_than_max_weights=df['Min Weight']<=df['Max Weight']
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
                         "Select Start Date",
@@ -135,6 +137,17 @@ def sidebar():
                         reset_start_end_and_rf_rate()
                     elif start_date<max_inception_date:
                         st.error(f"Invalid! Start Date cannot be precede latest inception date of {max_inception_date}.")
+                        reset_start_end_and_rf_rate()
+                    elif min_weight<0:
+                        st.error(f"Invalid! Minimum investment weights must be greater than or equal to 0%.")
+                        reset_start_end_and_rf_rate()
+                    elif max_weight>1.0:
+                        st.error(f"Invalid! Maximum investment weights must be less than or equal to 100%.")
+                        reset_start_end_and_rf_rate()
+                    elif not min_less_than_max_weights.all():
+                        print('failure')
+                        st.error(f"Invalid! Minimum investment weights must be less than or equal to maximum Investment Weights.")
+                        reset_start_end_and_rf_rate()
                     else:
                         st.session_state.start_date = start_date
                         st.session_state.end_date = end_date
@@ -466,33 +479,33 @@ if __name__ == "__main__":
     display_configuration()
 
     # Once Analysis is Configured (Indicated by History End Date being specified)
-    if st.session_state.end_date != None:
-        # Get Adjust Daily Close Prices
-        st.session_state.adj_daily_close=get_data_from_yf(
-            st.session_state.tickers_and_constraints["Ticker"].tolist(),
-            st.session_state.start_date,
-            st.session_state.end_date)
+    # if st.session_state.end_date != None:
+    #     # Get Adjust Daily Close Prices
+    #     st.session_state.adj_daily_close=get_data_from_yf(
+    #         st.session_state.tickers_and_constraints["Ticker"].tolist(),
+    #         st.session_state.start_date,
+    #         st.session_state.end_date)
 
-       # Calculate Portfolio Statistics based on Adjust Daily Closing Prices
-        (
-            st.session_state.growth_of_10000,
-            st.session_state.expected_returns,
-            st.session_state.std_deviations,
-            st.session_state.correlation_matrix,
-            st.session_state.efficient_frontier,
-        )=calc_port_stats(st.session_state.adj_daily_close)
+    #    # Calculate Portfolio Statistics based on Adjust Daily Closing Prices
+    #     (
+    #         st.session_state.growth_of_10000,
+    #         st.session_state.expected_returns,
+    #         st.session_state.std_deviations,
+    #         st.session_state.correlation_matrix,
+    #         st.session_state.efficient_frontier,
+    #     )=calc_port_stats(st.session_state.adj_daily_close)
 
-        # display_growth_of_10000_table(
-        #     st.session_state.tickers_and_constraints,
-        #     st.session_state.growth_of_10000)
-        display_growth_of_10000_graph(
-            st.session_state.tickers_and_constraints,
-            st.session_state.growth_of_10000)
-        display_return_and_sd_table_and_graph(
-            st.session_state.names_and_inceptions,
-            st.session_state.expected_returns,
-            st.session_state.std_deviations)
-        display_correlation_matrix(st.session_state.correlation_matrix)
-        display_efficient_frontier(st.session_state.efficient_frontier)
+    #     # display_growth_of_10000_table(
+    #     #     st.session_state.tickers_and_constraints,
+    #     #     st.session_state.growth_of_10000)
+    #     display_growth_of_10000_graph(
+    #         st.session_state.tickers_and_constraints,
+    #         st.session_state.growth_of_10000)
+    #     display_return_and_sd_table_and_graph(
+    #         st.session_state.names_and_inceptions,
+    #         st.session_state.expected_returns,
+    #         st.session_state.std_deviations)
+    #     display_correlation_matrix(st.session_state.correlation_matrix)
+    #     display_efficient_frontier(st.session_state.efficient_frontier)
 
-st.write(st.session_state)
+# st.write(st.session_state)
