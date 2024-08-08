@@ -2,6 +2,7 @@ from typing import Tuple
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+import numpy as np
 import pandas as pd
 import yfinance_api as yf_api
 import streamlit as st
@@ -16,6 +17,7 @@ def init_session_state() -> None:
     st.session_state.names_and_inceptions = pd.DataFrame()
     st.session_state.start_date = None
     st.session_state.end_date = None
+    st.session_state.curr_rf_rate = yf_api.get_previous_close('^TNX')/100
     st.session_state.rf_rate = None
     st.session_state.adj_daily_close = pd.DataFrame()
     st.session_state.growth_of_10000 = pd.DataFrame()
@@ -67,7 +69,7 @@ def sidebar():
         st.markdown("### Step 1: Select Excel File with Tickers & Constraints")
         old_tickers_and_constraints = st.session_state.tickers_and_constraints
         options: list[str] = ["Major Asset Classes",
-                              "Industry Sectors", "Custom"]
+                              "S&P Industry Sectors", "Custom"]
         opt = st.selectbox("Select Scenario", options, index=None)
         if opt == options[0]:
             st.session_state.tickers_and_constraints = pd.read_excel(
@@ -101,31 +103,35 @@ def sidebar():
                 st.markdown(
                     "### Step 2: Select Start Date, End Date, & Risk Free Rate")
                 # Find latest inception date
-                df=names_and_inceptions
-                max_inception_date:datetime=df.loc[df.loc[:,'Inception'].idxmax(),"Inception"].date()
-                df=st.session_state.tickers_and_constraints
-                min_weight:float=df.loc[df.loc[:,'Min Weight'].idxmin(),'Min Weight']
-                max_weight:float=df.loc[df.loc[:,'Max Weight'].idxmax(),'Max Weight']
-                min_less_than_max_weights=df['Min Weight']<=df['Max Weight']
+                df = names_and_inceptions
+                max_inception_date: datetime = df.loc[df.loc[:, 'Inception'].idxmax(
+                ), "Inception"].date()
+                df = st.session_state.tickers_and_constraints
+                min_weight: float = df.loc[df.loc[:,
+                                                  'Min Weight'].idxmin(), 'Min Weight']
+                max_weight: float = df.loc[df.loc[:,
+                                                  'Max Weight'].idxmax(), 'Max Weight']
+                min_less_than_max_weights = df['Min Weight'] <= df['Max Weight']
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
-                        "Select Start Date",
-                        format="MM/DD/YYYY",
-                        value=datetime.today() - timedelta(1) - relativedelta(years=5),
+                        "Select Start Date (YYYY-MM-DD)",
+                        format="YYYY-MM-DD",
+                        value=max_inception_date,
+                        # value=datetime.today() - timedelta(1) - relativedelta(years=3),
                         # for testing youtube
                         # value=datetime(year=2007, month=5, day=29),
                         min_value=max_inception_date
                     )
                     end_date = st.date_input(
-                        "Select End Date",
-                        format="MM/DD/YYYY",
+                        "Select End Date (YYYY-MM-DD)",
+                        format="YYYY-MM-DD",
                         value=datetime.today() - timedelta(1),
                         # for testing youtube
                         # value=datetime(year=2023, month=5, day=20),
                     )
                     # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
                     rf_rate = st.number_input(
-                        "Specify Risk-Free Rate", min_value=0.00, value=3.70
+                        "Specify Risk-Free Rate", min_value=0.00, value=st.session_state.curr_rf_rate*100,
                     )
                     calc_ef_button = st.form_submit_button(
                         "Calculate Efficient Frontier"
@@ -135,24 +141,27 @@ def sidebar():
                         st.error(
                             "Invalid! Start Date must be less than End Date.")
                         reset_start_end_and_rf_rate()
-                    elif start_date<max_inception_date:
-                        st.error(f"Invalid! Start Date cannot be precede latest inception date of {max_inception_date}.")
+                    elif start_date < max_inception_date:
+                        st.error(f"Invalid! Start Date cannot be precede latest inception date of {
+                                 max_inception_date}.")
                         reset_start_end_and_rf_rate()
-                    elif min_weight<0:
-                        st.error(f"Invalid! Minimum investment weights must be greater than or equal to 0%.")
+                    elif min_weight < 0:
+                        st.error(
+                            f"Invalid! Minimum investment weights must be greater than or equal to 0%.")
                         reset_start_end_and_rf_rate()
-                    elif max_weight>1.0:
-                        st.error(f"Invalid! Maximum investment weights must be less than or equal to 100%.")
+                    elif max_weight > 1.0:
+                        st.error(
+                            f"Invalid! Maximum investment weights must be less than or equal to 100%.")
                         reset_start_end_and_rf_rate()
                     elif not min_less_than_max_weights.all():
-                        print('failure')
-                        st.error(f"Invalid! Minimum investment weights must be less than or equal to maximum Investment Weights.")
+                        st.error(
+                            f"Invalid! Minimum investment weights must be less than or equal to maximum Investment Weights.")
                         reset_start_end_and_rf_rate()
                     else:
                         st.session_state.start_date = start_date
                         st.session_state.end_date = end_date
                         st.session_state.rf_rate = rf_rate
-                        st.session_state.selected_port=None
+                        st.session_state.selected_port = None
 
 
 @st.cache_data
@@ -186,22 +195,9 @@ def calc_port_stats(adj_daily_close):
 
 
 def display_configuration() -> None:
-    if st.session_state.start_date != None:
-        with st.expander(
-            "Analysis Configuration (Click to Hide / Show)",
-            expanded=True,
-        ):
+    with st.expander("Analysis Configuration (Click to Hide / Show)", expanded=True,):
+        if not st.session_state.names_and_inceptions.equals(pd.DataFrame()):
             st.markdown("#### Analysis Configuration:")
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.markdown(f"###### History Start Date: {
-                            st.session_state.start_date.strftime('%Y-%m-%d')}")
-            with col2:
-                st.markdown(f"###### History End Date: {
-                            st.session_state.end_date.strftime("%Y-%m-%d")}")
-            with col3:
-                st.markdown(
-                    f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
             st.markdown("###### Investments & Constraints:")
             df2: pd.DataFrame = st.session_state.names_and_inceptions
             df2["Inception"] = df2["Inception"].dt.strftime("%Y-%m-%d")
@@ -216,6 +212,17 @@ def display_configuration() -> None:
                     },
                 )
             )
+        if st.session_state.start_date != None:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"###### History Start Date: {
+                            st.session_state.start_date.strftime('%Y-%m-%d')}")
+            with col2:
+                st.markdown(f"###### History End Date: {
+                            st.session_state.end_date.strftime("%Y-%m-%d")}")
+            with col3:
+                st.markdown(
+                    f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
 
 
 def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> None:
@@ -230,9 +237,7 @@ def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> N
         st.dataframe(growth_of_10000.style.format(formatter=format_dict))
 
 
-def display_growth_of_10000_graph(
-    tickers_and_constraints, growth_of_10000: pd.DataFrame
-) -> None:
+def display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000: pd.DataFrame) -> None:
     with st.expander("Growth of $10,000 Graph (Click to Hide / Show)", expanded=True):
         tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
         # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
@@ -282,10 +287,13 @@ def display_return_and_sd_table_and_graph(
             st.dataframe(df.style.format(
                 {"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
         with col2:
+            customdata_set=list(df[['Investment']].to_numpy())
+            print(customdata_set)
             fig = go.Figure(
                 go.Scatter(
                     x=df["Std Dev"],
                     y=df["Return"],
+                    customdata=customdata_set,
                     name="",
                     text=pd.Series(expected_returns).index,
                     mode="markers+text",
@@ -295,7 +303,8 @@ def display_return_and_sd_table_and_graph(
             fig.update_traces(
                 textposition="middle right",
                 marker=dict(size=7, color="red"),
-                hovertemplate="<br>Std Dev: %{x}<br>Return: %{y}",
+                hovertemplate='%{customdata[0]}<br>'+'Std Dev: %{x}<br>'+'Return: %{y}',
+                # hovertemplate="<br>Std Dev: %{x}<br>Return: %{y}",
             )
             fig.update_xaxes(showgrid=True)
             fig.update_yaxes(showgrid=True)
@@ -459,10 +468,10 @@ def display_efficient_frontier(ef: pd.DataFrame):
                         values=selected_port_diversification, sort=False, direction='clockwise')])
         st.plotly_chart(fig, use_container_width=True)
 
-    with st.expander("Efficient Frontier Table (Click to Hide / Show)",expanded=False):
-        format_dict: dict[str, str]={}
+    with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
+        format_dict: dict[str, str] = {}
         for c in ef.columns:
-            format_dict[c]="{:.2%}"
+            format_dict[c] = "{:.2%}"
         st.dataframe(ef.style.format(formatter=format_dict))
 
 
@@ -479,33 +488,33 @@ if __name__ == "__main__":
     display_configuration()
 
     # Once Analysis is Configured (Indicated by History End Date being specified)
-    # if st.session_state.end_date != None:
-    #     # Get Adjust Daily Close Prices
-    #     st.session_state.adj_daily_close=get_data_from_yf(
-    #         st.session_state.tickers_and_constraints["Ticker"].tolist(),
-    #         st.session_state.start_date,
-    #         st.session_state.end_date)
+    if st.session_state.end_date != None:
+        # Get Adjust Daily Close Prices
+        st.session_state.adj_daily_close = get_data_from_yf(
+            st.session_state.tickers_and_constraints["Ticker"].tolist(),
+            st.session_state.start_date,
+            st.session_state.end_date)
 
-    #    # Calculate Portfolio Statistics based on Adjust Daily Closing Prices
-    #     (
-    #         st.session_state.growth_of_10000,
-    #         st.session_state.expected_returns,
-    #         st.session_state.std_deviations,
-    #         st.session_state.correlation_matrix,
-    #         st.session_state.efficient_frontier,
-    #     )=calc_port_stats(st.session_state.adj_daily_close)
+       # Calculate Portfolio Statistics based on Adjust Daily Closing Prices
+        (
+            st.session_state.growth_of_10000,
+            st.session_state.expected_returns,
+            st.session_state.std_deviations,
+            st.session_state.correlation_matrix,
+            st.session_state.efficient_frontier,
+        ) = calc_port_stats(st.session_state.adj_daily_close)
 
-    #     # display_growth_of_10000_table(
-    #     #     st.session_state.tickers_and_constraints,
-    #     #     st.session_state.growth_of_10000)
-    #     display_growth_of_10000_graph(
-    #         st.session_state.tickers_and_constraints,
-    #         st.session_state.growth_of_10000)
-    #     display_return_and_sd_table_and_graph(
-    #         st.session_state.names_and_inceptions,
-    #         st.session_state.expected_returns,
-    #         st.session_state.std_deviations)
-    #     display_correlation_matrix(st.session_state.correlation_matrix)
-    #     display_efficient_frontier(st.session_state.efficient_frontier)
+        # display_growth_of_10000_table(
+        #     st.session_state.tickers_and_constraints,
+        #     st.session_state.growth_of_10000)
+        display_growth_of_10000_graph(
+            st.session_state.tickers_and_constraints,
+            st.session_state.growth_of_10000)
+        display_return_and_sd_table_and_graph(
+            st.session_state.names_and_inceptions,
+            st.session_state.expected_returns,
+            st.session_state.std_deviations)
+        display_correlation_matrix(st.session_state.correlation_matrix)
+        display_efficient_frontier(st.session_state.efficient_frontier)
 
-# st.write(st.session_state)
+    # st.write(st.session_state)
