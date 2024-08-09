@@ -288,7 +288,6 @@ def display_return_and_sd_table_and_graph(
                 {"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
         with col2:
             customdata_set=list(df[['Investment']].to_numpy())
-            print(customdata_set)
             fig = go.Figure(
                 go.Scatter(
                     x=df["Std Dev"],
@@ -303,8 +302,7 @@ def display_return_and_sd_table_and_graph(
             fig.update_traces(
                 textposition="middle right",
                 marker=dict(size=7, color="red"),
-                hovertemplate='%{customdata[0]}<br>'+'Std Dev: %{x}<br>'+'Return: %{y}',
-                # hovertemplate="<br>Std Dev: %{x}<br>Return: %{y}",
+                hovertemplate='<b>%{customdata[0]}</b><br>'+'Std Dev: %{x}<br>'+'Return: %{y}',
             )
             fig.update_xaxes(showgrid=True)
             fig.update_yaxes(showgrid=True)
@@ -460,12 +458,17 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.text(f"Std Dev {selected_port_std_dev:.2%}   Return: {
                 selected_port_return:.2%}   Sharpe Ratio: {selected_port_sharpe:.2}")
     with col2:
-        st.write("Display Portfolio for Selected Point on Efficient Frontier")
         df = ef.iloc[st.session_state.selected_port]
         selected_port_tickers = df.index.tolist()[3:]
         selected_port_diversification = df.iloc[3:len(df)]
+        customdata_set=st.session_state.names_and_inceptions[['Name']].to_numpy()
         fig = go.Figure(data=[go.Pie(labels=selected_port_tickers,
-                        values=selected_port_diversification, sort=False, direction='clockwise')])
+                        values=selected_port_diversification, 
+                        customdata=customdata_set,
+                        name="",
+                        sort=False, direction='clockwise')])
+        fig.update_traces(textinfo='label', textfont_size=14,)
+        fig.update_traces(hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.2%}',)
         st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
