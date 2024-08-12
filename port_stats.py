@@ -24,16 +24,12 @@ def get_daily_returns(adj_close: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_daily_ln_returns(adj_close: Any) -> Any:
-    # print(type(adj_close))
     df = np.log((adj_close / adj_close.shift(1)))
-    # print(type(df))
     df = df.dropna()
-    # print(type(df))
     return df
 
 
 def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating total_return df")
     return pd.DataFrame()
 
 

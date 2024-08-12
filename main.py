@@ -170,7 +170,7 @@ def get_data_from_yf(tickers: list, start, end):
 
 
 @st.cache_data
-def calc_port_stats(adj_daily_close):
+def calc_port_stats(inv_and_constraints, risk_free_rate, adj_daily_close):
     growth_of_10000 = ps.get_growth_10000(adj_daily_close)
     # daily_returns = ps.get_daily_returns(adj_daily_close)
     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
@@ -180,8 +180,8 @@ def calc_port_stats(adj_daily_close):
     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
     # inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
     efficient_frontier = ef.get_efficient_frontier(
-        st.session_state.tickers_and_constraints,
-        st.session_state.rf_rate / 100,
+        inv_and_constraints,
+        risk_free_rate / 100,
         adj_daily_close,
     )
     efficient_frontier.rename(columns={"Risk": "Std Dev"}, inplace=True)
@@ -467,8 +467,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
                         customdata=customdata_set,
                         name="",
                         sort=False, direction='clockwise')])
-        fig.update_traces(textinfo='label', textfont_size=14,)
-        fig.update_traces(hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.2%}',)
+        fig.update_traces(textinfo='label+percent', textfont_size=14,)
+        fig.update_traces(hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
         st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
@@ -505,7 +505,9 @@ if __name__ == "__main__":
             st.session_state.std_deviations,
             st.session_state.correlation_matrix,
             st.session_state.efficient_frontier,
-        ) = calc_port_stats(st.session_state.adj_daily_close)
+        ) = calc_port_stats(st.session_state.tickers_and_constraints,
+                            st.session_state.rf_rate,
+                            st.session_state.adj_daily_close)
 
         # display_growth_of_10000_table(
         #     st.session_state.tickers_and_constraints,
