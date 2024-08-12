@@ -287,7 +287,7 @@ def display_return_and_sd_table_and_graph(
             st.dataframe(df.style.format(
                 {"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
         with col2:
-            customdata_set=list(df[['Investment']].to_numpy())
+            customdata_set = list(df[['Investment']].to_numpy())
             fig = go.Figure(
                 go.Scatter(
                     x=df["Std Dev"],
@@ -302,7 +302,8 @@ def display_return_and_sd_table_and_graph(
             fig.update_traces(
                 textposition="middle right",
                 marker=dict(size=7, color="red"),
-                hovertemplate='<b>%{customdata[0]}</b><br>'+'Std Dev: %{x}<br>'+'Return: %{y}',
+                hovertemplate='<b>%{customdata[0]}</b><br>' +
+                'Std Dev: %{x}<br>'+'Return: %{y}',
             )
             fig.update_xaxes(showgrid=True)
             fig.update_yaxes(showgrid=True)
@@ -408,9 +409,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
 
     col1, col2 = st.columns(2)
     with col1:
-        selected_port_std_dev = ef.iloc[st.session_state.selected_port]["Std Dev"]
-        selected_port_return = ef.iloc[st.session_state.selected_port]["Return"]
-        selected_port_sharpe = ef.iloc[st.session_state.selected_port]["Sharpe"]
+        selected_portfolio = ef.iloc[st.session_state.selected_port]
 
         fig = go.Figure(
             go.Scatter(
@@ -418,6 +417,10 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 y=ef["Return"],
                 name="Efficient Frontier",
                 mode="lines+markers",
+                customdata=ef[['Std Dev', 'Return', 'Sharpe']],
+                hovertemplate='Std Dev: %{customdata[0]:.2%}<br>' + \
+                'Return: %{customdata[1]:.2%}<br>' + \
+                'Sharpe: %{customdata[2]:.2f}',
             )
         )
         fig.add_trace(
@@ -425,15 +428,23 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 x=[ef.iloc[ef['Sharpe'].idxmax()]['Std Dev']],
                 y=[ef.iloc[ef['Sharpe'].idxmax()]['Return']],
                 name="Max Sharpe Ratio",
+                customdata=[ef.iloc[ef['Sharpe'].idxmax()]['Sharpe']],
+                hovertemplate='Std Dev: %{x:.2%}<br>' +
+                'Return: %{y:.2%}<br>' +
+                'Sharpe: %{customdata:.2f}',
                 marker=dict(color="red", size=10),
                 mode="markers",
             )
         )
         fig.add_trace(
             go.Scatter(
-                x=[ef.iloc[st.session_state.selected_port]["Std Dev"]],
-                y=[ef.iloc[st.session_state.selected_port]["Return"]],
+                x=[selected_portfolio["Std Dev"]],
+                y=[selected_portfolio["Return"]],
                 name="Selected Portfolio",
+                customdata=selected_portfolio[['Sharpe']],
+                hovertemplate='Std Dev: %{x:.2%}<br>' +
+                'Return: %{y:.2%}<br>' +
+                'Sharpe: %{customdata:.2f}',
                 marker=dict(
                     size=25,
                     symbol="diamond",
@@ -442,7 +453,6 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 ),
             )
         )
-
         fig.update_xaxes(rangemode="tozero")
         fig.update_yaxes(rangemode="tozero")
         fig.update_layout(height=600, width=600,
@@ -453,22 +463,27 @@ def display_efficient_frontier(ef: pd.DataFrame):
             xaxis=dict(tickformat=".2%"),
             yaxis=dict(tickformat=".2%"),
         )
+        fig.update_traces(
+            textposition="middle right",
+        )
         st.plotly_chart(fig, use_container_width=True)
         st.markdown('**Statistics of Selected Portfolio:**')
-        st.text(f"Std Dev {selected_port_std_dev:.2%}   Return: {
-                selected_port_return:.2%}   Sharpe Ratio: {selected_port_sharpe:.2}")
+        st.text(f"Std Dev {selected_portfolio['Std Dev']:.2%}   Return: {
+                selected_portfolio['Return']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
     with col2:
         df = ef.iloc[st.session_state.selected_port]
         selected_port_tickers = df.index.tolist()[3:]
         selected_port_diversification = df.iloc[3:len(df)]
-        customdata_set=st.session_state.names_and_inceptions[['Name']].to_numpy()
+        customdata_set = st.session_state.names_and_inceptions[[
+            'Name']].to_numpy()
         fig = go.Figure(data=[go.Pie(labels=selected_port_tickers,
-                        values=selected_port_diversification, 
+                        values=selected_port_diversification,
                         customdata=customdata_set,
                         name="",
                         sort=False, direction='clockwise')])
         fig.update_traces(textinfo='label+percent', textfont_size=14,)
-        fig.update_traces(hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
+        fig.update_traces(
+            hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
         st.plotly_chart(fig, use_container_width=True)
 
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
