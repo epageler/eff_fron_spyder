@@ -68,18 +68,29 @@ def sidebar():
         st.markdown("# Configure Analysis")
         st.markdown("### Step 1: Select Excel File with Tickers & Constraints")
         old_tickers_and_constraints = st.session_state.tickers_and_constraints
-        options: list[str] = ["Major Asset Classes",
-                              "S&P Industry Sectors", "Custom"]
+        options: list[str] = ["Major Asset Classes, Constrained",
+                              "Major Asset Classes, Unconstrained",
+                              "S&P Industry Sectors, Constrained", 
+                              "S&P Industry Sectors, Unconstrained",
+                              "Custom"]
         opt = st.selectbox("Select Scenario", options, index=None)
         if opt == options[0]:
             st.session_state.tickers_and_constraints = pd.read_excel(
-                "./data/asset_classes.xlsx"
+                "./data/asset_classes_constrained.xlsx"
             )
-        elif opt == options[1]:
+        if opt == options[1]:
             st.session_state.tickers_and_constraints = pd.read_excel(
-                "./data/industry_sectors.xlsx"
+                "./data/asset_classes_unconstrained.xlsx"
             )
         elif opt == options[2]:
+            st.session_state.tickers_and_constraints = pd.read_excel(
+                "./data/industry_sectors_constrained.xlsx"
+            )
+        elif opt == options[3]:
+            st.session_state.tickers_and_constraints = pd.read_excel(
+                "./data/industry_sectors_unconstrained.xlsx"
+            )
+        elif opt == options[4]:
             f = st.file_uploader("Select Excel File")
             if f:
                 st.session_state.tickers_and_constraints = pd.read_excel(f)
