@@ -29,8 +29,8 @@ def get_daily_ln_returns(adj_close: Any) -> Any:
     return df
 
 
-def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
-    return pd.DataFrame()
+# def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
+#     return pd.DataFrame()
 
 
 def get_correlation_matrix(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:

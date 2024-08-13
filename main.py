@@ -221,20 +221,28 @@ def display_configuration() -> None:
                 st.markdown(f"###### History End Date: {
                             st.session_state.end_date.strftime("%Y-%m-%d")}")
             with col3:
-                st.markdown(
+                st.markdown(  # The above code is using f-string formatting in Python to display the
+                    # value of `st.session_state.rf_rate` with two decimal places followed by
+                    # a percentage sign. The text "Risk-Free Rate: " is also included in the
+                    # output.
+
                     f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
 
 
 def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> None:
+    df=growth_of_10000
+    df.index=pd.to_datetime(df.index).strftime('%Y-%m-%d')
     with st.expander("Growth of $10,000 Table (Click to Hide / Show)", expanded=True):
-        tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
+        st.markdown("#### Growth of $10,000")
+        tickers: list[str] = tickers_and_constraints["Ticker"]
         # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
         # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
-        columns = growth_of_10000.columns
+        columns = df.columns
         format_dict: dict[str, str] = {}
         for c in columns:
             format_dict[c] = "${:,.2f}"
-        st.dataframe(growth_of_10000.style.format(formatter=format_dict))
+        st.dataframe(
+            df.iloc[[-1]].style.format(formatter=format_dict))
 
 
 def display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000: pd.DataFrame) -> None:
@@ -251,7 +259,7 @@ def display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000: pd.D
             x=growth_of_10000.index,
             y=growth_of_10000.columns[0: len(growth_of_10000.columns)],
             title="Growth of $10,000",
-            # color="Ticker"
+            # color="Ticker",
         )
         fig.update_layout(
             title="Growth of $10,000",
@@ -418,8 +426,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 name="Efficient Frontier",
                 mode="lines+markers",
                 customdata=ef[['Std Dev', 'Return', 'Sharpe']],
-                hovertemplate='Std Dev: %{customdata[0]:.2%}<br>' + \
-                'Return: %{customdata[1]:.2%}<br>' + \
+                hovertemplate='Return: %{customdata[1]:.2%}<br>' +
+                'Std Dev: %{customdata[0]:.2%}<br>' +
                 'Sharpe: %{customdata[2]:.2f}',
             )
         )
@@ -429,8 +437,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 y=[ef.iloc[ef['Sharpe'].idxmax()]['Return']],
                 name="Max Sharpe Ratio",
                 customdata=[ef.iloc[ef['Sharpe'].idxmax()]['Sharpe']],
-                hovertemplate='Std Dev: %{x:.2%}<br>' +
-                'Return: %{y:.2%}<br>' +
+                hovertemplate='Return: %{y:.2%}<br>' +
+                'Std Dev: %{x:.2%}<br>' +
                 'Sharpe: %{customdata:.2f}',
                 marker=dict(color="red", size=10),
                 mode="markers",
@@ -442,8 +450,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 y=[selected_portfolio["Return"]],
                 name="Selected Portfolio",
                 customdata=selected_portfolio[['Sharpe']],
-                hovertemplate='Std Dev: %{x:.2%}<br>' +
-                'Return: %{y:.2%}<br>' +
+                hovertemplate='Return: %{y:.2%}<br>' +
+                'Std Dev: %{x:.2%}<br>' +
                 'Sharpe: %{customdata:.2f}',
                 marker=dict(
                     size=25,
@@ -455,7 +463,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
         )
         fig.update_xaxes(rangemode="tozero")
         fig.update_yaxes(rangemode="tozero")
-        fig.update_layout(height=600, width=600,
+        fig.update_layout(height=500, width=500,
                           title=dict(text="Efficient Frontier"))
         fig.update_layout(
             xaxis_title="Annual Standard Deviation (Risk)",
@@ -467,9 +475,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
             textposition="middle right",
         )
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown('**Statistics of Selected Portfolio:**')
-        st.text(f"Std Dev {selected_portfolio['Std Dev']:.2%}   Return: {
-                selected_portfolio['Return']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
+
     with col2:
         df = ef.iloc[st.session_state.selected_port]
         selected_port_tickers = df.index.tolist()[3:]
@@ -480,12 +486,21 @@ def display_efficient_frontier(ef: pd.DataFrame):
                         values=selected_port_diversification,
                         customdata=customdata_set,
                         name="",
-                        sort=False, direction='clockwise')])
-        fig.update_traces(textinfo='label+percent', textfont_size=14,)
+                        sort=False, direction='clockwise',
+                        showlegend=True,
+                        # automargin=False
+                                     ),
+                              ]
+                        )
+        fig.update_traces(textinfo='label+percent', textfont_size=14)
         fig.update_traces(
             hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
+        fig.update_layout(title='Portfolio Diversification')
         st.plotly_chart(fig, use_container_width=True)
 
+    st.markdown('**Statistics of Selected Portfolio:**')
+    st.text(f"Return: {selected_portfolio['Return']:.2%}   Std Dev {
+            selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
         format_dict: dict[str, str] = {}
         for c in ef.columns:
@@ -524,10 +539,10 @@ if __name__ == "__main__":
                             st.session_state.rf_rate,
                             st.session_state.adj_daily_close)
 
-        # display_growth_of_10000_table(
-        #     st.session_state.tickers_and_constraints,
-        #     st.session_state.growth_of_10000)
         display_growth_of_10000_graph(
+            st.session_state.tickers_and_constraints,
+            st.session_state.growth_of_10000)
+        display_growth_of_10000_table(
             st.session_state.tickers_and_constraints,
             st.session_state.growth_of_10000)
         display_return_and_sd_table_and_graph(
