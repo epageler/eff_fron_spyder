@@ -78,7 +78,7 @@ def sidebar():
             st.session_state.tickers_and_constraints = pd.read_excel(
                 "./data/asset_classes_constrained.xlsx"
             )
-        if opt == options[1]:
+        elif opt == options[1]:
             st.session_state.tickers_and_constraints = pd.read_excel(
                 "./data/asset_classes_unconstrained.xlsx"
             )
@@ -563,4 +563,4 @@ if __name__ == "__main__":
         display_correlation_matrix(st.session_state.correlation_matrix)
         display_efficient_frontier(st.session_state.efficient_frontier)
 
-    # st.write(st.session_state)
+    st.write(st.session_state)
