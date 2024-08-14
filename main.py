@@ -70,7 +70,7 @@ def sidebar():
         old_tickers_and_constraints = st.session_state.tickers_and_constraints
         options: list[str] = ["Major Asset Classes, Constrained",
                               "Major Asset Classes, Unconstrained",
-                              "S&P Industry Sectors, Constrained", 
+                              "S&P Industry Sectors, Constrained",
                               "S&P Industry Sectors, Unconstrained",
                               "Custom"]
         opt = st.selectbox("Select Scenario", options, index=None)
@@ -240,9 +240,9 @@ def display_configuration() -> None:
                     f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
 
 
-def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> None:
-    df=growth_of_10000
-    df.index=pd.to_datetime(df.index).strftime('%Y-%m-%d')
+def display_growth_of_10000_table(tickers_and_constraints: pd.DataFrame, growth_of_10000: pd.DataFrame) -> None:
+    df = growth_of_10000
+    df.index = pd.to_datetime(df.index).strftime('%Y-%m-%d')
     with st.expander("Growth of $10,000 Table (Click to Hide / Show)", expanded=True):
         st.markdown("#### Growth of $10,000")
         tickers: list[str] = tickers_and_constraints["Ticker"]
@@ -256,8 +256,10 @@ def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> N
             df.iloc[[-1]].style.format(formatter=format_dict))
 
 
-def display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000: pd.DataFrame) -> None:
+def display_growth_of_10000_graph(tickers_and_constraints: pd.DataFrame, growth_of_10000: pd.DataFrame) -> None:
     with st.expander("Growth of $10,000 Graph (Click to Hide / Show)", expanded=True):
+
+        # Display Graph
         tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
         # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
         # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
@@ -283,6 +285,16 @@ def display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000: pd.D
             yaxis_tickformat=",",
         )
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Display ending value of $10,000 investment
+        df=growth_of_10000
+        columns = df .columns
+        format_dict: dict[str, str] = {}
+        for c in columns:
+            format_dict[c] = "${:,.2f}"
+        st.markdown('Ending value of $10,000 Investment:')
+        st.dataframe(
+            df.iloc[[-1]].style.format(formatter=format_dict))
 
 
 def display_return_and_sd_table_and_graph(
@@ -300,7 +312,7 @@ def display_return_and_sd_table_and_graph(
         )
         df = df.reset_index()
         df = df.rename(columns={"index": "Ticker"})
-        col1, col2 = st.columns([6, 6])
+        col1, col2 = st.columns([6,6])
         with col1:
             st.markdown("##### Annual Return vs Standard Deviation")
             st.dataframe(df.style.format(
@@ -321,8 +333,8 @@ def display_return_and_sd_table_and_graph(
             fig.update_traces(
                 textposition="middle right",
                 marker=dict(size=7, color="red"),
-                hovertemplate='<b>%{customdata[0]}</b><br>' +
-                'Std Dev: %{x}<br>'+'Return: %{y}',
+                hovertemplate='<b>%{customdata[0]}</b><br>' + 'Return: %{y}<br>' +
+                'Std Dev: %{x}',
             )
             fig.update_xaxes(showgrid=True)
             fig.update_yaxes(showgrid=True)
@@ -553,9 +565,9 @@ if __name__ == "__main__":
         display_growth_of_10000_graph(
             st.session_state.tickers_and_constraints,
             st.session_state.growth_of_10000)
-        display_growth_of_10000_table(
-            st.session_state.tickers_and_constraints,
-            st.session_state.growth_of_10000)
+        # display_growth_of_10000_table(
+        #     st.session_state.tickers_and_constraints,
+        #     st.session_state.growth_of_10000)
         display_return_and_sd_table_and_graph(
             st.session_state.names_and_inceptions,
             st.session_state.expected_returns,
@@ -563,4 +575,4 @@ if __name__ == "__main__":
         display_correlation_matrix(st.session_state.correlation_matrix)
         display_efficient_frontier(st.session_state.efficient_frontier)
 
-    st.write(st.session_state)
+    # st.write(st.session_state)
