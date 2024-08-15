@@ -285,15 +285,15 @@ def display_growth_of_10000_graph(tickers_and_constraints: pd.DataFrame, growth_
             yaxis_tickformat=",",
         )
         st.plotly_chart(fig, use_container_width=True)
-        
+
         # Display ending value of $10,000 investment
-        df=growth_of_10000
+        df = growth_of_10000
         columns = df .columns
         format_dict: dict[str, str] = {}
         for c in columns:
             format_dict[c] = "${:,.2f}"
         # Convert Timestamp index to string
-        df.index=df.index.astype(str)
+        df.index = df.index.astype(str)
         st.markdown('Ending value of $10,000 Investment:')
         st.dataframe(
             df.iloc[[-1]].style.format(formatter=format_dict))
@@ -314,7 +314,7 @@ def display_return_and_sd_table_and_graph(
         )
         df = df.reset_index()
         df = df.rename(columns={"index": "Ticker"})
-        col1, col2 = st.columns([6,6])
+        col1, col2 = st.columns([6, 6])
         with col1:
             st.markdown("##### Annual Return vs Standard Deviation")
             st.dataframe(df.style.format(
@@ -523,9 +523,13 @@ def display_efficient_frontier(ef: pd.DataFrame):
         fig.update_layout(title='Portfolio Diversification')
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown('**Statistics of Selected Portfolio:**')
-    st.text(f"Return: {selected_portfolio['Return']:.2%}   Std Dev {
+    st.markdown('#### **Statistics of Selected Portfolio:**')
+    st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev {
             selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
+    st.text(f"Expected Annual Return +/- 1 Std Dev (68% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']):.2%} to {
+            (selected_portfolio['Return']+selected_portfolio['Std Dev']):.2%}")
+    st.text(f"Expected Annual Return +/- 2 Std Dev (95% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']*2):.2%} to {
+        (selected_portfolio['Return']+selected_portfolio['Std Dev']*2):.2%}")
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
         format_dict: dict[str, str] = {}
         for c in ef.columns:
