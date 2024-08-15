@@ -56,12 +56,12 @@ def get_expected_returns(daily_ln_returns: pd.DataFrame) -> pd.Series:
     # line below calculates annual expected returns based on 252 trading days per year
     # df = np.exp(daily_ln_returns.mean() * 252) - 1
 
-    # lines below calculates annual expected returns based on 365.25 calendar days per year
+    # lines below calculates annual expected returns based on 365 calendar days per year
     trading_days: int = len(daily_ln_returns)
     start_date = daily_ln_returns.index[0]
     end_date = daily_ln_returns.index[-1]
     calendar_days: int = (end_date-start_date).days
-    years: float = (calendar_days/365.25)
+    years: float = (calendar_days/365)
     df = np.exp(daily_ln_returns.mean() * trading_days/years) - 1
     return df
 

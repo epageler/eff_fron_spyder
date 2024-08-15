@@ -125,8 +125,8 @@ def sidebar():
                 min_less_than_max_weights = df['Min Weight'] <= df['Max Weight']
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
-                        "Select Start Date (YYYY-MM-DD)",
-                        format="YYYY-MM-DD",
+                        "Select Start Date (MM-DD-YYYY)",
+                        format="MM-DD-YYYY",
                         value=max_inception_date,
                         # value=datetime.today() - timedelta(1) - relativedelta(years=3),
                         # for testing youtube
@@ -134,8 +134,8 @@ def sidebar():
                         min_value=max_inception_date
                     )
                     end_date = st.date_input(
-                        "Select End Date (YYYY-MM-DD)",
-                        format="YYYY-MM-DD",
+                        "Select End Date (MM-DD-YYYY)",
+                        format="MM-DD-YYYY",
                         value=datetime.today() - timedelta(1),
                         # for testing youtube
                         # value=datetime(year=2023, month=5, day=20),
@@ -292,6 +292,8 @@ def display_growth_of_10000_graph(tickers_and_constraints: pd.DataFrame, growth_
         format_dict: dict[str, str] = {}
         for c in columns:
             format_dict[c] = "${:,.2f}"
+        # Convert Timestamp index to string
+        df.index=df.index.astype(str)
         st.markdown('Ending value of $10,000 Investment:')
         st.dataframe(
             df.iloc[[-1]].style.format(formatter=format_dict))
