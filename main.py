@@ -11,6 +11,8 @@ import efrontier as ef
 import plotly.express as px
 import plotly.graph_objects as go
 
+import pprint
+
 
 def init_session_state() -> None:
     st.session_state.tickers_and_constraints = pd.DataFrame()
@@ -355,24 +357,30 @@ def display_return_and_sd_table_and_graph(
             st.plotly_chart(fig)
 
 
-def display_correlation_matrix(cm: pd.DataFrame) -> None:
+def display_correlation_matrix(cm: pd.DataFrame, names_and_inceptions: pd.DataFrame) -> None:
     with st.expander(
         "Investment Correlation Matrix (Click to Hide / Show)", expanded=True
     ):
-        # st.markdown("##### Investment Correlation Matrix")
-        # st.dataframe(cm)
+        # Create hover text
+        hover_text = list()
+        for y_index, y_name in enumerate(cm.index):
+            hover_text.append(list())
+            for x_index, x_name in enumerate(cm.index):
+                hover_text[-1].append(f"{names_and_inceptions.loc[x_name, 'Name']} ({x_name})<br>vs {
+                                      names_and_inceptions.loc[y_name, 'Name']} ({y_name})<br>Correlation: {cm.loc[x_name, y_name]:.2f}")
+
         cm = cm.round(decimals=2)
-        cm = cm[::-1]  # Reverse the df  Why does this work?
-        fig = go.FigureWidget(
+        fig = go.Figure(
             data=go.Heatmap(
                 z=cm,
-                # Reverse the x-axis labels. Why does this work?
-                x=cm.index[::-1],
+                x=cm.index,
                 y=cm.index,
                 colorscale="RdBu_r",
                 texttemplate="%{z}",
                 zmin=-1,
                 zmax=1,
+                hoverinfo='text',
+                text=hover_text
             )
         )
 
@@ -386,6 +394,8 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
             width=800,
             height=800,
             font=dict(size=18),
+            hoverlabel_align='right',
+            hoverlabel=dict(font=dict(size=16))
         )
         st.plotly_chart(fig)
 
@@ -578,7 +588,8 @@ if __name__ == "__main__":
             st.session_state.names_and_inceptions,
             st.session_state.expected_returns,
             st.session_state.std_deviations)
-        display_correlation_matrix(st.session_state.correlation_matrix)
+        display_correlation_matrix(
+            st.session_state.correlation_matrix, st.session_state.names_and_inceptions)
         display_efficient_frontier(st.session_state.efficient_frontier)
 
     # st.write(st.session_state)
