@@ -314,13 +314,14 @@ def display_return_and_sd_table_and_graph(
                 "Std Dev": std_deviations,
             }
         )
+        df['Sharpe']=(df['Return']-st.session_state.rf_rate/100)/df['Std Dev']
         df = df.reset_index()
         df = df.rename(columns={"index": "Ticker"})
-        col1, col2 = st.columns([6, 6])
+        col1, col2 = st.columns([7, 5])
         with col1:
             st.markdown("##### Annual Return vs Standard Deviation")
             st.dataframe(df.style.format(
-                {"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
+                {"Return": "{:.2%}", "Std Dev": "{:.2%}", "Sharpe": "{:.2f}"}))
         with col2:
             customdata_set = list(df[['Investment']].to_numpy())
             fig = go.Figure(
