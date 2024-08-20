@@ -2,6 +2,7 @@ from typing import Tuple
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+import numpy as np
 import pandas as pd
 import yfinance_api as yf_api
 import streamlit as st
@@ -10,11 +11,23 @@ import efrontier as ef
 import plotly.express as px
 import plotly.graph_objects as go
 
-if "init" not in st.session_state:
-    st.session_state["init"] = True
-    st.session_state["xlsx_selected"] = False
-    st.session_state["dates_and_rf_rate_selected"] = False
-    st.session_state["selected_portfolio"] = None
+import pprint
+
+
+def init_session_state() -> None:
+    st.session_state.tickers_and_constraints = pd.DataFrame()
+    st.session_state.names_and_inceptions = pd.DataFrame()
+    st.session_state.start_date = None
+    st.session_state.end_date = None
+    st.session_state.curr_rf_rate = yf_api.get_previous_close('^TNX')/100
+    st.session_state.rf_rate = None
+    st.session_state.adj_daily_close = pd.DataFrame()
+    st.session_state.growth_of_10000 = pd.DataFrame()
+    st.session_state.expected_returns = pd.DataFrame()
+    st.session_state.std_deviations = pd.DataFrame()
+    st.session_state.correlation_matrix = pd.DataFrame()
+    st.session_state.efficient_frontier = pd.DataFrame()
+    st.session_state.selected_port = None
 
 
 def configure_page() -> None:
@@ -22,7 +35,6 @@ def configure_page() -> None:
 
 
 def overview() -> None:
-    # st.write(st.session_state)
     st.markdown("## Overview")
     st.markdown(
         "#### This app determines the Efficient Frontier for a specified list of investments and timeframe."
@@ -33,106 +45,147 @@ def overview() -> None:
     st.divider()
 
 
-def sidebar() -> tuple[pd.DataFrame, pd.DataFrame, datetime, datetime, float]:
-
-    def excel_file_selected() -> None:
-        st.session_state["xlsx_selected"] = True
-
-    def dates_and_rf_rate_selected() -> None:
-        st.session_state["dates_and_rf_rate_selected"] = True
-
-    def reset_all() -> Tuple:
-        tickers_and_constraints = pd.DataFrame()
-        names = pd.DataFrame()
-        start_date = None
-        end_date = None
-        rf_rate = None
-        return tickers_and_constraints, names, start_date, end_date, rf_rate
+def sidebar():
+    def reset_all() -> None:
+        st.session_state.tickers_and_constraints = pd.DataFrame()
+        st.session_state.names_and_inceptions = pd.DataFrame()
+        st.session_state.start_date = None
+        st.session_state.end_date = None
+        st.session_state.rf_rate = None
+        st.session_state.adj_daily_close = pd.DataFrame()
+        st.session_state.growth_of_10000 = pd.DataFrame()
+        st.session_state.expected_returns = pd.DataFrame()
+        st.session_state.std_deviations = pd.DataFrame()
+        st.session_state.correlation_matrix = pd.DataFrame()
+        st.session_state.efficient_frontier = pd.DataFrame()
+        st.session_state.selected_port = None
 
     def reset_start_end_and_rf_rate():
-        start_date = None
-        end_date = None
-        rf_rate = None
-        return start_date, end_date, rf_rate
+        st.session_state.start_date = None
+        st.session_state.end_date = None
+        st.session_state.rf_rate = None
+        st.session_state.selected_port = None
 
     with st.sidebar:
         st.markdown("# Configure Analysis")
         st.markdown("### Step 1: Select Excel File with Tickers & Constraints")
-        options: list[str] = ["Major Asset Classes", "Industry Sectors", "Custom"]
-        opt = st.selectbox(
-            "Select Scenario", options, index=None, on_change=excel_file_selected
-        )
+        old_tickers_and_constraints = st.session_state.tickers_and_constraints
+        options: list[str] = ["Major Asset Classes, Constrained",
+                              "Major Asset Classes, Unconstrained",
+                              "S&P Industry Sectors, Constrained",
+                              "S&P Industry Sectors, Unconstrained",
+                              "Custom"]
+        opt = st.selectbox("Select Scenario", options, index=None)
         if opt == options[0]:
-            tickers_and_constraints = pd.read_excel("./data/asset_classes.xlsx")
-            st.session_state["dates_and_rf_rate_selected"] = False
+            st.session_state.tickers_and_constraints = pd.read_excel(
+                "./data/asset_classes_constrained.xlsx"
+            )
         elif opt == options[1]:
-            tickers_and_constraints = pd.read_excel("./data/industry_sectors.xlsx")
-            st.session_state["dates_and_rf_rate_selected"] = False
+            st.session_state.tickers_and_constraints = pd.read_excel(
+                "./data/asset_classes_unconstrained.xlsx"
+            )
         elif opt == options[2]:
-            st.session_state["xlsx_selected"] = False
-            tickers_and_constraints, names, start_date, end_date, rf_rate = reset_all()
+            st.session_state.tickers_and_constraints = pd.read_excel(
+                "./data/industry_sectors_constrained.xlsx"
+            )
+        elif opt == options[3]:
+            st.session_state.tickers_and_constraints = pd.read_excel(
+                "./data/industry_sectors_unconstrained.xlsx"
+            )
+        elif opt == options[4]:
             f = st.file_uploader("Select Excel File")
             if f:
-                tickers_and_constraints = pd.read_excel(f)
-                st.session_state["xlsx_selected"] = True
+                st.session_state.tickers_and_constraints = pd.read_excel(f)
         else:
-            tickers_and_constraints, names, start_date, end_date, rf_rate = reset_all()
-            st.session_state["xlsx_selected"] = False
-            st.session_state["dates_and_rf_rate_selected"] = False
-        # Check if all tickers are valid
-        if st.session_state["xlsx_selected"]:
-            names = pd.DataFrame()
-            err, names = yf_api.get_investment_names(
-                tickers=tickers_and_constraints["Ticker"].tolist()
+            reset_all()
+        if not st.session_state.tickers_and_constraints.equals(old_tickers_and_constraints):
+            reset_start_end_and_rf_rate()
+
+        # Once Excel File has been selected
+        if not st.session_state.tickers_and_constraints.equals(pd.DataFrame()):
+            # Check if all tickers are valid
+            err, names_and_inceptions = yf_api.get_names_and_inceptions(
+                tickers=st.session_state.tickers_and_constraints["Ticker"].tolist(
+                )
             )
             if err != "":
                 st.error(f"Error! {err}")
                 reset_all()
-                st.session_state["xlsx_selected"] = False
-                st.session_state["dates_and_rf_rate_selected"] = False
-
-        if st.session_state["xlsx_selected"]:
-            st.markdown("### Step 2: Select Start Date, End Date, & Risk Free Rate")
-            with st.form("config_dates_rf_rate"):
-                start_date = st.date_input(
-                    "Select Start Date",
-                    format="MM/DD/YYYY",
-                    value=datetime.today() - timedelta(1) - relativedelta(years=5),
-                    # value=datetime(year=2007, month=5, day=29),  # for testing youtube
-                )
-                end_date = st.date_input(
-                    "Select End Date",
-                    format="MM/DD/YYYY",
-                    value=datetime.today() - timedelta(1),
-                    # value=datetime(year=2023, month=5, day=20),   # for testing youtube
-                )
-                # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
-                rf_rate = st.number_input(
-                    "Specify Risk-Free Rate", min_value=0.00, value=3.70
-                )
-                calc_ef_button = st.form_submit_button(
-                    "Calculate Efficient Frontier", on_click=dates_and_rf_rate_selected
-                )
-            if calc_ef_button:
-                st.session_state["dates_and_rf_rate_selected"] = True
-                if end_date < start_date:
-                    st.error("Error! Start Date must be less than End Date.")
-                    start_date, end_date, rf_rate = reset_start_end_and_rf_rate()
-                    st.session_state["dates_and_rf_rate_entered"] = False
-
-        return tickers_and_constraints, names, start_date, end_date, rf_rate
+            else:
+                st.session_state.names_and_inceptions = names_and_inceptions
+                st.markdown(
+                    "### Step 2: Select Start Date, End Date, & Risk Free Rate")
+                # Find latest inception date
+                df = names_and_inceptions
+                max_inception_date: datetime = df.loc[df.loc[:, 'Inception'].idxmax(
+                ), "Inception"].date()
+                df = st.session_state.tickers_and_constraints
+                min_weight: float = df.loc[df.loc[:,
+                                                  'Min Weight'].idxmin(), 'Min Weight']
+                max_weight: float = df.loc[df.loc[:,
+                                                  'Max Weight'].idxmax(), 'Max Weight']
+                min_less_than_max_weights = df['Min Weight'] <= df['Max Weight']
+                with st.form("config_dates_rf_rate"):
+                    start_date = st.date_input(
+                        "Select Start Date (MM-DD-YYYY)",
+                        format="MM-DD-YYYY",
+                        value=max_inception_date,
+                        # value=datetime.today() - timedelta(1) - relativedelta(years=3),
+                        # for testing youtube
+                        # value=datetime(year=2007, month=5, day=29),
+                        min_value=max_inception_date
+                    )
+                    end_date = st.date_input(
+                        "Select End Date (MM-DD-YYYY)",
+                        format="MM-DD-YYYY",
+                        value=datetime.today() - timedelta(1),
+                        # for testing youtube
+                        # value=datetime(year=2023, month=5, day=20),
+                    )
+                    # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
+                    rf_rate = st.number_input(
+                        "Specify Risk-Free Rate", min_value=0.00, value=st.session_state.curr_rf_rate*100,
+                    )
+                    calc_ef_button = st.form_submit_button(
+                        "Calculate Efficient Frontier"
+                    )
+                if calc_ef_button:
+                    if end_date < start_date:
+                        st.error(
+                            "Invalid! Start Date must be less than End Date.")
+                        reset_start_end_and_rf_rate()
+                    elif start_date < max_inception_date:
+                        st.error(f"Invalid! Start Date cannot be precede latest inception date of {
+                                 max_inception_date}.")
+                        reset_start_end_and_rf_rate()
+                    elif min_weight < 0:
+                        st.error(
+                            f"Invalid! Minimum investment weights must be greater than or equal to 0%.")
+                        reset_start_end_and_rf_rate()
+                    elif max_weight > 1.0:
+                        st.error(
+                            f"Invalid! Maximum investment weights must be less than or equal to 100%.")
+                        reset_start_end_and_rf_rate()
+                    elif not min_less_than_max_weights.all():
+                        st.error(
+                            f"Invalid! Minimum investment weights must be less than or equal to maximum Investment Weights.")
+                        reset_start_end_and_rf_rate()
+                    else:
+                        st.session_state.start_date = start_date
+                        st.session_state.end_date = end_date
+                        st.session_state.rf_rate = rf_rate
+                        st.session_state.selected_port = None
 
 
 @st.cache_data
-def get_data_from_yf(tickers, start, end):
-    adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
-    return adj_daily_close
+def get_data_from_yf(tickers: list, start, end):
+    return yf_api.get_adj_daily_close(tickers, start, end)
 
 
 @st.cache_data
-def calc_port_stats(adj_daily_close):
+def calc_port_stats(inv_and_constraints, risk_free_rate, adj_daily_close):
     growth_of_10000 = ps.get_growth_10000(adj_daily_close)
-    daily_returns = ps.get_daily_returns(adj_daily_close)
+    # daily_returns = ps.get_daily_returns(adj_daily_close)
     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
     correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
     expected_returns = ps.get_expected_returns(daily_ln_returns)
@@ -140,7 +193,9 @@ def calc_port_stats(adj_daily_close):
     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
     # inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
     efficient_frontier = ef.get_efficient_frontier(
-        tickers_and_constraints, risk_free_rate / 100, adj_daily_close
+        inv_and_constraints,
+        risk_free_rate / 100,
+        adj_daily_close,
     )
     efficient_frontier.rename(columns={"Risk": "Std Dev"}, inplace=True)
     return (
@@ -152,42 +207,61 @@ def calc_port_stats(adj_daily_close):
     )
 
 
-def display_configuration(tickers_and_constraints, names) -> None:
-    with st.expander(
-        "Tickers, Investment Names, & Constraints (Click to Hide / Show)", expanded=True
-    ):
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.markdown(f"###### History Start Date: {start}")
-        with col2:
-            st.markdown(f"###### History Enc Date: {end}")
-        with col3:
-            st.markdown(f"###### Risk-Free Rate: {risk_free_rate:.2f}%")
-        st.markdown("#### Investments & Constraints:")
-        df2: pd.DataFrame = names
-        df2["Ticker"] = names.index
-        df2.rename(columns={"longName": "Investment"}, inplace=True)
-        df = pd.merge(tickers_and_constraints, df2)
-        df = df[["Ticker", "Investment", "Min Weight", "Max Weight"]]
-        st.dataframe(df.style.format({"Min Weight": "{:.2%}", "Max Weight": "{:.2%}"}))
+def display_configuration() -> None:
+    with st.expander("Analysis Configuration (Click to Hide / Show)", expanded=True,):
+        if not st.session_state.names_and_inceptions.equals(pd.DataFrame()):
+            st.markdown("#### Analysis Configuration:")
+            st.markdown("###### Investments & Constraints:")
+            df2: pd.DataFrame = st.session_state.names_and_inceptions
+            df2["Inception"] = df2["Inception"].dt.strftime("%Y-%m-%d")
+            df2["Ticker"] = df2.index
+            df = pd.merge(st.session_state.tickers_and_constraints, df2)
+            df = df[["Ticker", "Name", "Min Weight", "Max Weight", "Inception"]]
+            st.dataframe(
+                df.style.format(
+                    {
+                        "Min Weight": "{:.2%}",
+                        "Max Weight": "{:.2%}",
+                    },
+                )
+            )
+        if st.session_state.start_date != None:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.markdown(f"###### History Start Date: {
+                            st.session_state.start_date.strftime('%Y-%m-%d')}")
+            with col2:
+                st.markdown(f"###### History End Date: {
+                            st.session_state.end_date.strftime("%Y-%m-%d")}")
+            with col3:
+                st.markdown(  # The above code is using f-string formatting in Python to display the
+                    # value of `st.session_state.rf_rate` with two decimal places followed by
+                    # a percentage sign. The text "Risk-Free Rate: " is also included in the
+                    # output.
+
+                    f"###### Risk-Free Rate: {st.session_state.rf_rate:.2f}%")
 
 
-def display_growth_of_10000_table(tickers_and_constraints, growth_of_10000) -> None:
+def display_growth_of_10000_table(tickers_and_constraints: pd.DataFrame, growth_of_10000: pd.DataFrame) -> None:
+    df = growth_of_10000
+    df.index = pd.to_datetime(df.index).strftime('%Y-%m-%d')
     with st.expander("Growth of $10,000 Table (Click to Hide / Show)", expanded=True):
-        tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
+        st.markdown("#### Growth of $10,000")
+        tickers: list[str] = tickers_and_constraints["Ticker"]
         # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
         # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
-        columns = growth_of_10000.columns
+        columns = df.columns
         format_dict: dict[str, str] = {}
         for c in columns:
             format_dict[c] = "${:,.2f}"
-        st.dataframe(growth_of_10000.style.format(formatter=format_dict))
+        st.dataframe(
+            df.iloc[[-1]].style.format(formatter=format_dict))
 
 
-def display_growth_of_10000_graph(
-    tickers_and_constraints, growth_of_10000: pd.DataFrame
-) -> None:
+def display_growth_of_10000_graph(tickers_and_constraints: pd.DataFrame, growth_of_10000: pd.DataFrame) -> None:
     with st.expander("Growth of $10,000 Graph (Click to Hide / Show)", expanded=True):
+
+        # Display Graph
         tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
         # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
         # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
@@ -198,9 +272,9 @@ def display_growth_of_10000_graph(
         fig = px.line(
             growth_of_10000,
             x=growth_of_10000.index,
-            y=growth_of_10000.columns[0 : len(growth_of_10000.columns)],
+            y=growth_of_10000.columns[0: len(growth_of_10000.columns)],
             title="Growth of $10,000",
-            # color="Ticker"
+            # color="Ticker",
         )
         fig.update_layout(
             title="Growth of $10,000",
@@ -214,31 +288,48 @@ def display_growth_of_10000_graph(
         )
         st.plotly_chart(fig, use_container_width=True)
 
+        # Display ending value of $10,000 investment
+        df = growth_of_10000
+        columns = df .columns
+        format_dict: dict[str, str] = {}
+        for c in columns:
+            format_dict[c] = "${:,.2f}"
+        # Convert Timestamp index to string
+        df.index = df.index.astype(str)
+        st.markdown('Ending value of $10,000 Investment:')
+        st.dataframe(
+            df.iloc[[-1]].style.format(formatter=format_dict))
+
 
 def display_return_and_sd_table_and_graph(
-    names, expected_returns, std_deviations
+    names_and_inceptions, expected_returns, std_deviations
 ) -> None:
     with st.expander(
-        "Expected Return & Standard Deviation (Click to Hide / Show)", expanded=True
+        "Expected Return, Standard Deviation, Sharpe Ratio for Each Investment (Click to Hide / Show)", expanded=True
     ):
         df = pd.DataFrame(
             {
-                "Investment": names["Investment"],
+                "Investment": names_and_inceptions["Name"],
                 "Return": expected_returns,
                 "Std Dev": std_deviations,
             }
         )
+        df['Sharpe'] = (
+            df['Return']-st.session_state.rf_rate/100)/df['Std Dev']
         df = df.reset_index()
         df = df.rename(columns={"index": "Ticker"})
         col1, col2 = st.columns([6, 6])
         with col1:
-            st.markdown("##### Annual Return vs Standard Deviation")
-            st.dataframe(df.style.format({"Return": "{:.2%}", "Std Dev": "{:.2%}"}))
+            st.markdown("##### Annual Return, Standard Deviation, & Sharpe")
+            st.dataframe(df.style.format(
+                {"Return": "{:.2%}", "Std Dev": "{:.2%}", "Sharpe": "{:.2f}"}))
         with col2:
+            customdata_set = list(df[['Investment']].to_numpy())
             fig = go.Figure(
                 go.Scatter(
                     x=df["Std Dev"],
                     y=df["Return"],
+                    customdata=customdata_set,
                     name="",
                     text=pd.Series(expected_returns).index,
                     mode="markers+text",
@@ -248,42 +339,50 @@ def display_return_and_sd_table_and_graph(
             fig.update_traces(
                 textposition="middle right",
                 marker=dict(size=7, color="red"),
-                hovertemplate="<br>Std Dev: %{x}<br>Return: %{y}",
+                hovertemplate='<b>%{customdata[0]}</b><br>' + 'Return: %{y}<br>' +
+                'Std Dev: %{x}',
             )
             fig.update_xaxes(showgrid=True)
             fig.update_yaxes(showgrid=True)
             fig.update_layout(
-                # title="Standard Deviation vs Return",
+                title="Standard Deviation vs Return",
                 # title_x=0.25,
                 xaxis_title="Annual Std Deviation (Risk)",
                 yaxis_title="Annual Return",
                 xaxis=dict(tickformat=".2%"),
                 yaxis=dict(tickformat=".2%"),
-                autosize=False,
+                autosize=True,
                 # width=600,
-                height=500,
+                # height=500,
             )
             # st.plotly_chart(fig, use_container_width=True)
             st.plotly_chart(fig)
 
 
-def display_correlation_matrix(cm: pd.DataFrame) -> None:
+def display_correlation_matrix(cm: pd.DataFrame, names_and_inceptions: pd.DataFrame) -> None:
     with st.expander(
         "Investment Correlation Matrix (Click to Hide / Show)", expanded=True
     ):
-        # st.markdown("##### Investment Correlation Matrix")
-        # st.dataframe(cm)
+        # Create hover text
+        hover_text = list()
+        for y_index, y_name in enumerate(cm.index):
+            hover_text.append(list())
+            for x_index, x_name in enumerate(cm.index):
+                hover_text[-1].append(f"{names_and_inceptions.loc[x_name, 'Name']} ({x_name})<br>vs {
+                                      names_and_inceptions.loc[y_name, 'Name']} ({y_name})<br>Correlation: {cm.loc[x_name, y_name]:.2f}")
+
         cm = cm.round(decimals=2)
-        cm = cm[::-1]  # Reverse the df  Why does this work?
-        fig = go.FigureWidget(
+        fig = go.Figure(
             data=go.Heatmap(
                 z=cm,
-                x=cm.index[::-1],  # Reverse the x-axis labels. Why does this work?
+                x=cm.index,
                 y=cm.index,
                 colorscale="RdBu_r",
                 texttemplate="%{z}",
                 zmin=-1,
                 zmax=1,
+                hoverinfo='text',
+                text=hover_text
             )
         )
 
@@ -297,6 +396,8 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
             width=800,
             height=800,
             font=dict(size=18),
+            hoverlabel_align='right',
+            hoverlabel=dict(font=dict(size=16))
         )
         st.plotly_chart(fig)
 
@@ -304,20 +405,18 @@ def display_correlation_matrix(cm: pd.DataFrame) -> None:
 def display_efficient_frontier(ef: pd.DataFrame):
     st.markdown("##### Efficient Frontier")
 
+    if st.session_state.selected_port == None:
+        st.session_state.selected_port = ef['Sharpe'].idxmax()
+
     def set_portfolio(abs_value, inc_value):
         if abs_value == None:
-            st.session_state["selected_portfolio"] += inc_value
-            if st.session_state["selected_portfolio"] < 0:
-                st.session_state["selected_portfolio"] = 0
-            if st.session_state["selected_portfolio"] > len(ef.index):
-                st.session_state["selected_portfolio"] = len(ef.index)
+            st.session_state.selected_port += inc_value
+            if st.session_state.selected_port < 0:
+                st.session_state.selected_port = 0
+            if st.session_state.selected_port > (len(ef)-1):
+                st.session_state.selected_port = len(ef)-1
         else:
-            st.session_state["selected_portfolio"] = abs_value
-        print(
-            st.session_state[
-                "FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"
-            ]
-        )
+            st.session_state.selected_port = abs_value
 
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
@@ -349,109 +448,153 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.button(
             "Max Risk & Return",
             on_click=set_portfolio,
-            args=(len(ef.index), None),
+            args=(len(ef.index)-1, None),
             type="primary",
         )
 
     col1, col2 = st.columns(2)
     with col1:
+        selected_portfolio = ef.iloc[st.session_state.selected_port]
+
         fig = go.Figure(
             go.Scatter(
                 x=ef["Std Dev"],
                 y=ef["Return"],
                 name="Efficient Frontier",
                 mode="lines+markers",
+                customdata=ef[['Std Dev', 'Return', 'Sharpe']],
+                hovertemplate='Return: %{customdata[1]:.2%}<br>' +
+                'Std Dev: %{customdata[0]:.2%}<br>' +
+                'Sharpe: %{customdata[2]:.2f}',
             )
         )
-        # fig.add_trace(
-        #     go.Scatter(
-        #         x=[portfolio_with_max_sharpe["Std Dev"]],
-        #         y=[portfolio_with_max_sharpe["Return"]],
-        #         name="Max Sharpe Ratio",
-        #         marker=dict(color="red", size=10),
-        #         mode="markers",
-        #     )
-        # )
-        # fig.add_trace(
-        #     go.Scatter(
-        #         x=[selected_portfolio["Std Dev"]],
-        #         y=[selected_portfolio["Return"]],
-        #         name="Selected Portfolio",
-        #         marker=dict(
-        #             size=25,
-        #             symbol="diamond",
-        #             line=dict(width=2, color="green"),
-        #             opacity=0.5,
-        #         ),
-        #     )
-        # )
-
+        fig.add_trace(
+            go.Scatter(
+                x=[ef.iloc[ef['Sharpe'].idxmax()]['Std Dev']],
+                y=[ef.iloc[ef['Sharpe'].idxmax()]['Return']],
+                name="Max Sharpe Ratio",
+                customdata=[ef.iloc[ef['Sharpe'].idxmax()]['Sharpe']],
+                hovertemplate='Return: %{y:.2%}<br>' +
+                'Std Dev: %{x:.2%}<br>' +
+                'Sharpe: %{customdata:.2f}',
+                marker=dict(color="red", size=10),
+                mode="markers",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[selected_portfolio["Std Dev"]],
+                y=[selected_portfolio["Return"]],
+                name="Selected Portfolio",
+                customdata=selected_portfolio[['Sharpe']],
+                hovertemplate='Return: %{y:.2%}<br>' +
+                'Std Dev: %{x:.2%}<br>' +
+                'Sharpe: %{customdata:.2f}',
+                marker=dict(
+                    size=25,
+                    symbol="diamond",
+                    line=dict(width=2, color="green"),
+                    opacity=0.5,
+                ),
+            )
+        )
         fig.update_xaxes(rangemode="tozero")
         fig.update_yaxes(rangemode="tozero")
-        fig.update_layout(height=600, width=600, title=dict(text="Efficient Frontier"))
+        fig.update_layout(height=500, width=500,
+                          title=dict(text="Efficient Frontier"))
         fig.update_layout(
             xaxis_title="Annual Standard Deviation (Risk)",
             yaxis_title="Annual Return",
             xaxis=dict(tickformat=".2%"),
             yaxis=dict(tickformat=".2%"),
         )
+        fig.update_traces(
+            textposition="middle right",
+        )
         st.plotly_chart(fig, use_container_width=True)
+
     with col2:
-        st.write("Display Portfolio for Selected Point on Efficient Frontier")
-    st.divider()
-    format_dict: dict[str, str] = {}
-    for c in ef.columns:
-        format_dict[c] = "{:.2%}"
-    st.dataframe(ef.style.format(formatter=format_dict))
+        df = ef.iloc[st.session_state.selected_port]
+        selected_port_tickers = df.index.tolist()[3:]
+        selected_port_diversification = df.iloc[3:len(df)]
+        customdata_set = st.session_state.names_and_inceptions[[
+            'Name']]
+        values=selected_port_diversification.tolist()
+        labels=selected_port_tickers
+        fig = go.Figure(data=[go.Pie(
+                        values=values,
+                        labels=labels,
+                        customdata=customdata_set,
+                        name="",
+                        sort=False, direction='clockwise',
+                        showlegend=True,
+                        automargin=False
+                        ),
+        ]
+        )
+        fig.update_traces(textinfo='label+percent', textfont_size=14)
+        fig.update_traces(
+            hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
+        fig.update_layout(title='Portfolio Diversification')
+        st.plotly_chart(fig, use_container_width=True)
+
+    st.markdown('#### **Statistics of Selected Portfolio:**')
+    st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev {
+            selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
+    st.text(f"Expected Annual Return +/- 1 Std Dev (68% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']):.2%} to {
+            (selected_portfolio['Return']+selected_portfolio['Std Dev']):.2%}")
+    st.text(f"Expected Annual Return +/- 2 Std Dev (95% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']*2):.2%} to {
+        (selected_portfolio['Return']+selected_portfolio['Std Dev']*2):.2%}")
+    with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
+        format_dict: dict[str, str] = {}
+        for c in ef.columns:
+            format_dict[c] = "{:.2%}"
+        st.dataframe(ef.style.format(formatter=format_dict))
 
 
 if __name__ == "__main__":
     configure_page()
-    overview()
-    st.write(st.session_state)
-    tickers_and_constraints, names, start, end, risk_free_rate = sidebar()
-    if (
-        st.session_state["xlsx_selected"]
-        and st.session_state["dates_and_rf_rate_selected"]
-    ):
-        display_configuration(tickers_and_constraints, names)
-        adj_daily_close = get_data_from_yf(
-            tickers_and_constraints["Ticker"].tolist(), start, end
-        )
-        (
-            growth_of_10000,
-            expected_returns,
-            std_deviations,
-            correlation_matrix,
-            efficient_frontier,
-        ) = calc_port_stats(adj_daily_close)
-        st.session_state["selected_portfolio"] = efficient_frontier["Sharpe"].idxmax()
-        display_growth_of_10000_table(tickers_and_constraints, growth_of_10000)
-        display_growth_of_10000_graph(tickers_and_constraints, growth_of_10000)
-        display_return_and_sd_table_and_graph(names, expected_returns, std_deviations)
-        display_correlation_matrix(correlation_matrix)
-        display_efficient_frontier(efficient_frontier)
-    # err, names = yf_api.get_investment_names(tickers)
-    # if err != "":
-    #     print(err)
-    # else:
-    #     daily_returns = ps.get_daily_returns(adj_daily_close)
-    #     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
-    #     correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
-    #     expected_returns = ps.get_expected_returns(daily_ln_returns)
-    #     std_deviations = ps.get_std_deviations(daily_ln_returns)
-    #     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
-    #     inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
-    #     efficient_frontier = ef.get_efficient_frontier(
-    #         inv_and_constraints, risk_free_rate, adj_daily_close
-    #     )
-    #     st.dataframe(growth_of_10000)
-    #     st.dataframe(correlation_matrix)
-st.write(st.session_state)
 
-if (
-    "FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"
-    in st.session_state
-):
-    # print(st.session_state["FormSubmitter:config_dates_rf_rate-Calculate Efficient Frontier"])
-    pass
+    # Init session_state if not done so already
+    if len(st.session_state) == 0:
+        init_session_state()
+
+    # st.write(st.session_state)
+    overview()
+    sidebar()
+    display_configuration()
+
+    # Once Analysis is Configured (Indicated by History End Date being specified)
+    if st.session_state.end_date != None:
+        # Get Adjust Daily Close Prices
+        st.session_state.adj_daily_close = get_data_from_yf(
+            st.session_state.tickers_and_constraints["Ticker"].tolist(),
+            st.session_state.start_date,
+            st.session_state.end_date)
+
+       # Calculate Portfolio Statistics based on Adjust Daily Closing Prices
+        (
+            st.session_state.growth_of_10000,
+            st.session_state.expected_returns,
+            st.session_state.std_deviations,
+            st.session_state.correlation_matrix,
+            st.session_state.efficient_frontier,
+        ) = calc_port_stats(st.session_state.tickers_and_constraints,
+                            st.session_state.rf_rate,
+                            st.session_state.adj_daily_close)
+
+        display_growth_of_10000_graph(
+            st.session_state.tickers_and_constraints,
+            st.session_state.growth_of_10000)
+        # display_growth_of_10000_table(
+        #     st.session_state.tickers_and_constraints,
+        #     st.session_state.growth_of_10000)
+        display_return_and_sd_table_and_graph(
+            st.session_state.names_and_inceptions,
+            st.session_state.expected_returns,
+            st.session_state.std_deviations)
+        display_correlation_matrix(
+            st.session_state.correlation_matrix, st.session_state.names_and_inceptions)
+        display_efficient_frontier(st.session_state.efficient_frontier)
+
+    # st.write(st.session_state)

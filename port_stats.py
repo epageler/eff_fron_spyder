@@ -24,17 +24,13 @@ def get_daily_returns(adj_close: pd.DataFrame) -> pd.DataFrame:
 
 
 def get_daily_ln_returns(adj_close: Any) -> Any:
-    # print(type(adj_close))
     df = np.log((adj_close / adj_close.shift(1)))
-    # print(type(df))
     df = df.dropna()
-    # print(type(df))
     return df
 
 
-def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
-    print("\n calculating total_return df")
-    return pd.DataFrame()
+# def get_total_return(adj_close: pd.DataFrame) -> pd.DataFrame:
+#     return pd.DataFrame()
 
 
 def get_correlation_matrix(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
@@ -44,7 +40,7 @@ def get_correlation_matrix(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
 
 def get_expected_returns(daily_ln_returns: pd.DataFrame) -> pd.Series:
     """
-    Calculates the covariance of the specified investments.
+    Calculates the annual return (CAGR)of the specified investments.
 
     Args:
         daily_ln_returns (pd.DataFrame):
@@ -57,7 +53,16 @@ def get_expected_returns(daily_ln_returns: pd.DataFrame) -> pd.Series:
             row headings: investment tickers
             table content: annual expected return of investment
     """
-    df = np.exp(daily_ln_returns.mean() * 252) - 1
+    # line below calculates annual expected returns based on 252 trading days per year
+    # df = np.exp(daily_ln_returns.mean() * 252) - 1
+
+    # lines below calculates annual expected returns based on 365 calendar days per year
+    trading_days: int = len(daily_ln_returns)
+    start_date = daily_ln_returns.index[0]
+    end_date = daily_ln_returns.index[-1]
+    calendar_days: int = (end_date-start_date).days
+    years: float = (calendar_days/365)
+    df = np.exp(daily_ln_returns.mean() * trading_days/years) - 1
     return df
 
 
