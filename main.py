@@ -305,7 +305,7 @@ def display_return_and_sd_table_and_graph(
     names_and_inceptions, expected_returns, std_deviations
 ) -> None:
     with st.expander(
-        "Expected Return & Standard Deviation (Click to Hide / Show)", expanded=True
+        "Expected Return, Standard Deviation, Sharpe Ratio for Each Investment (Click to Hide / Show)", expanded=True
     ):
         df = pd.DataFrame(
             {
@@ -314,12 +314,13 @@ def display_return_and_sd_table_and_graph(
                 "Std Dev": std_deviations,
             }
         )
-        df['Sharpe']=(df['Return']-st.session_state.rf_rate/100)/df['Std Dev']
+        df['Sharpe'] = (
+            df['Return']-st.session_state.rf_rate/100)/df['Std Dev']
         df = df.reset_index()
         df = df.rename(columns={"index": "Ticker"})
-        col1, col2 = st.columns([7, 5])
+        col1, col2 = st.columns([6, 6])
         with col1:
-            st.markdown("##### Annual Return vs Standard Deviation")
+            st.markdown("##### Annual Return, Standard Deviation, & Sharpe")
             st.dataframe(df.style.format(
                 {"Return": "{:.2%}", "Std Dev": "{:.2%}", "Sharpe": "{:.2f}"}))
         with col2:
@@ -344,15 +345,15 @@ def display_return_and_sd_table_and_graph(
             fig.update_xaxes(showgrid=True)
             fig.update_yaxes(showgrid=True)
             fig.update_layout(
-                # title="Standard Deviation vs Return",
+                title="Standard Deviation vs Return",
                 # title_x=0.25,
                 xaxis_title="Annual Std Deviation (Risk)",
                 yaxis_title="Annual Return",
                 xaxis=dict(tickformat=".2%"),
                 yaxis=dict(tickformat=".2%"),
-                autosize=False,
+                autosize=True,
                 # width=600,
-                height=500,
+                # height=500,
             )
             # st.plotly_chart(fig, use_container_width=True)
             st.plotly_chart(fig)
@@ -517,17 +518,20 @@ def display_efficient_frontier(ef: pd.DataFrame):
         selected_port_tickers = df.index.tolist()[3:]
         selected_port_diversification = df.iloc[3:len(df)]
         customdata_set = st.session_state.names_and_inceptions[[
-            'Name']].to_numpy()
-        fig = go.Figure(data=[go.Pie(labels=selected_port_tickers,
-                        values=selected_port_diversification,
+            'Name']]
+        values=selected_port_diversification.tolist()
+        labels=selected_port_tickers
+        fig = go.Figure(data=[go.Pie(
+                        values=values,
+                        labels=labels,
                         customdata=customdata_set,
                         name="",
                         sort=False, direction='clockwise',
                         showlegend=True,
-                        # automargin=False
-                                     ),
-                              ]
-                        )
+                        automargin=False
+                        ),
+        ]
+        )
         fig.update_traces(textinfo='label+percent', textfont_size=14)
         fig.update_traces(
             hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
