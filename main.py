@@ -125,6 +125,7 @@ def sidebar():
                 max_weight: float = df.loc[df.loc[:,
                                                   'Max Weight'].idxmax(), 'Max Weight']
                 min_less_than_max_weights = df['Min Weight'] <= df['Max Weight']
+                sum_of_max_weights:float=df["Curr Weight"].sum()
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
                         "Select Start Date (MM-DD-YYYY)",
@@ -170,6 +171,9 @@ def sidebar():
                         st.error(
                             f"Invalid! Minimum investment weights must be less than or equal to maximum Investment Weights.")
                         reset_start_end_and_rf_rate()
+                    elif sum_of_max_weights<1:
+                        st.error('Sum of Max Weight of Investments must be greater than or equal to 100%')
+                        reset_start_end_and_rf_rate()
                     else:
                         st.session_state.start_date = start_date
                         st.session_state.end_date = end_date
@@ -185,13 +189,13 @@ def get_data_from_yf(tickers: list, start, end):
 @st.cache_data
 def calc_port_stats(inv_and_constraints, risk_free_rate, adj_daily_close):
     growth_of_10000 = ps.get_growth_10000(adj_daily_close)
-    # daily_returns = ps.get_daily_returns(adj_daily_close)
+    daily_returns = ps.get_daily_returns(adj_daily_close)
     daily_ln_returns = ps.get_daily_ln_returns(adj_daily_close)
     correlation_matrix = ps.get_correlation_matrix(daily_ln_returns)
     expected_returns = ps.get_expected_returns(daily_ln_returns)
     std_deviations = ps.get_std_deviations(daily_ln_returns)
     cov_matrix = ps.get_cov_matrix(daily_ln_returns)
-    # inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
+    inv_cov_matrix = ps.get_inv_cov_matrix(cov_matrix)
     efficient_frontier = ef.get_efficient_frontier(
         inv_and_constraints,
         risk_free_rate / 100,
@@ -202,6 +206,7 @@ def calc_port_stats(inv_and_constraints, risk_free_rate, adj_daily_close):
         growth_of_10000,
         expected_returns,
         std_deviations,
+        cov_matrix,
         correlation_matrix,
         efficient_frontier,
     )
@@ -216,12 +221,13 @@ def display_configuration() -> None:
             df2["Inception"] = df2["Inception"].dt.strftime("%Y-%m-%d")
             df2["Ticker"] = df2.index
             df = pd.merge(st.session_state.tickers_and_constraints, df2)
-            df = df[["Ticker", "Name", "Min Weight", "Max Weight", "Inception"]]
+            df = df[["Ticker", "Name", "Min Weight", "Max Weight", "Curr Weight","Inception"]]
             st.dataframe(
                 df.style.format(
                     {
                         "Min Weight": "{:.2%}",
                         "Max Weight": "{:.2%}",
+                        "Curr Weight": "{:.2%}",
                     },
                 )
             )
@@ -519,8 +525,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
         selected_port_diversification = df.iloc[3:len(df)]
         customdata_set = st.session_state.names_and_inceptions[[
             'Name']]
-        values=selected_port_diversification.tolist()
-        labels=selected_port_tickers
+        values = selected_port_diversification.tolist()
+        labels = selected_port_tickers
         fig = go.Figure(data=[go.Pie(
                         values=values,
                         labels=labels,
@@ -539,7 +545,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('#### **Statistics of Selected Portfolio:**')
-    st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev {
+    st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev: {
             selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
     st.text(f"Expected Annual Return +/- 1 Std Dev (68% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']):.2%} to {
             (selected_portfolio['Return']+selected_portfolio['Std Dev']):.2%}")
@@ -577,6 +583,7 @@ if __name__ == "__main__":
             st.session_state.growth_of_10000,
             st.session_state.expected_returns,
             st.session_state.std_deviations,
+            st.session_state.cov_matrix,
             st.session_state.correlation_matrix,
             st.session_state.efficient_frontier,
         ) = calc_port_stats(st.session_state.tickers_and_constraints,
@@ -596,5 +603,17 @@ if __name__ == "__main__":
         display_correlation_matrix(
             st.session_state.correlation_matrix, st.session_state.names_and_inceptions)
         display_efficient_frontier(st.session_state.efficient_frontier)
+
+
+        # current_portfolio_return = ps.get_portfolio_return(
+        #     st.session_state.tickers_and_constraints['Curr Weight'],
+        #     st.session_state.expected_returns)
+        # current_portfolio_sd: float = ps.get_portfolio_sd(
+        #     st.session_state.tickers_and_constraints['Curr Weight'], st.session_state.cov_matrix)
+        # current_portfolio_sharpe: float = (current_portfolio_return-st.session_state.rf_rate/100)/current_portfolio_sd
+        # print('------------------------------------')
+        # print(f"current_portfolio_return: {current_portfolio_return:.2%}")
+        # print(f"current_portfolio_sd: {current_portfolio_sd:.2%}")
+        # print(f"current_portfolio_sharpe: {current_portfolio_sharpe:.2f}")
 
     # st.write(st.session_state)

@@ -108,3 +108,13 @@ def get_cov_matrix(daily_ln_returns: pd.DataFrame) -> pd.DataFrame:
 def get_inv_cov_matrix(cov_matrix: Any) -> Any:
     df = np.linalg.inv(cov_matrix)
     return df
+
+def get_portfolio_return(weights:pd.DataFrame, expected_returns:pd.Series)-> float:
+    p_ret = np.inner(weights, expected_returns)
+    return p_ret
+
+def get_portfolio_sd(weights:pd.DataFrame,cov:pd.DataFrame)-> float:
+    # Equation:
+    # Std Dev = sqrt ( (Investment_Weights)*(Covariance_Matrix) * (Inverse of Investment_Weights) *252 )
+    sd:float = np.sqrt(np.dot(np.dot(weights, cov), weights.T) * 252)
+    return sd
