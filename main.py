@@ -28,6 +28,9 @@ def init_session_state() -> None:
     st.session_state.correlation_matrix = pd.DataFrame()
     st.session_state.efficient_frontier = pd.DataFrame()
     st.session_state.selected_port = None
+    st.session_state.current_portfolio_return = None
+    st.session_state.current_portfolio_sd = None
+    st.session_state.current_portfolio_sharpe = None
 
 
 def configure_page() -> None:
@@ -59,6 +62,9 @@ def sidebar():
         st.session_state.correlation_matrix = pd.DataFrame()
         st.session_state.efficient_frontier = pd.DataFrame()
         st.session_state.selected_port = None
+        st.session_state.current_portfolio_return = None
+        st.session_state.current_portfolio_sd = None
+        st.session_state.current_portfolio_sharpe = None
 
     def reset_start_end_and_rf_rate():
         st.session_state.start_date = None
@@ -125,7 +131,8 @@ def sidebar():
                 max_weight: float = df.loc[df.loc[:,
                                                   'Max Weight'].idxmax(), 'Max Weight']
                 min_less_than_max_weights = df['Min Weight'] <= df['Max Weight']
-                sum_of_max_weights:float=df["Curr Weight"].sum()
+                sum_of_max_weights: float = df["Max Weight"].sum()
+                sum_of_curr_weights: float = df["Curr Weight"].sum()
                 with st.form("config_dates_rf_rate"):
                     start_date = st.date_input(
                         "Select Start Date (MM-DD-YYYY)",
@@ -169,10 +176,15 @@ def sidebar():
                         reset_start_end_and_rf_rate()
                     elif not min_less_than_max_weights.all():
                         st.error(
-                            f"Invalid! Minimum investment weights must be less than or equal to maximum Investment Weights.")
+                            f"Invalid! Minimum Investment weights must be less than or equal to Maximum Investment Weights.")
                         reset_start_end_and_rf_rate()
-                    elif sum_of_max_weights<1:
-                        st.error('Sum of Max Weight of Investments must be greater than or equal to 100%')
+                    elif sum_of_max_weights < 1:
+                        st.error(
+                            'Invalid! Sum of Maximum Weights of investments must be greater than or equal to 100%')
+                        reset_start_end_and_rf_rate()
+                    elif sum_of_curr_weights > 1.00:
+                        st.error(
+                            'Invalid! Sum of Current Weights of investments must be less than or equal to 100%')
                         reset_start_end_and_rf_rate()
                     else:
                         st.session_state.start_date = start_date
@@ -202,6 +214,16 @@ def calc_port_stats(inv_and_constraints, risk_free_rate, adj_daily_close):
         adj_daily_close,
     )
     efficient_frontier.rename(columns={"Risk": "Std Dev"}, inplace=True)
+    if not (inv_and_constraints['Curr Weight'] == 0).all():
+        current_portfolio_return = ps.get_portfolio_return(
+            inv_and_constraints['Curr Weight'],
+            expected_returns)
+        current_portfolio_sd: float = ps.get_portfolio_sd(
+            inv_and_constraints['Curr Weight'], cov_matrix)
+        current_portfolio_sharpe: float = (
+            current_portfolio_return-st.session_state.rf_rate/100)/current_portfolio_sd
+    else:
+        current_portfolio_return, current_portfolio_sd, current_portfolio_sharpe = None, None, None
     return (
         growth_of_10000,
         expected_returns,
@@ -209,6 +231,9 @@ def calc_port_stats(inv_and_constraints, risk_free_rate, adj_daily_close):
         cov_matrix,
         correlation_matrix,
         efficient_frontier,
+        current_portfolio_return,
+        current_portfolio_sd,
+        current_portfolio_sharpe
     )
 
 
@@ -221,7 +246,8 @@ def display_configuration() -> None:
             df2["Inception"] = df2["Inception"].dt.strftime("%Y-%m-%d")
             df2["Ticker"] = df2.index
             df = pd.merge(st.session_state.tickers_and_constraints, df2)
-            df = df[["Ticker", "Name", "Min Weight", "Max Weight", "Curr Weight","Inception"]]
+            df = df[["Ticker", "Name", "Min Weight",
+                     "Max Weight", "Curr Weight", "Inception"]]
             st.dataframe(
                 df.style.format(
                     {
@@ -460,6 +486,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
 
     col1, col2 = st.columns(2)
     with col1:
+        st.markdown(f"#### Efficient Frontier:")
+        st.markdown('---')
         selected_portfolio = ef.iloc[st.session_state.selected_port]
 
         fig = go.Figure(
@@ -504,10 +532,21 @@ def display_efficient_frontier(ef: pd.DataFrame):
                 ),
             )
         )
+        fig.add_trace(
+            go.Scatter(
+                x=[st.session_state.current_portfolio_sd],
+                y=[st.session_state.current_portfolio_return],
+                name="Current Portfolio",
+                customdata=[st.session_state.current_portfolio_sharpe],
+                hovertemplate='Return: %{y:.2%}<br>' +
+                'Std Dev: %{x:.2%}<br>' +
+                'Sharpe: %{customdata:.2f}',
+                marker=dict(color="green", size=10),)
+        )
         fig.update_xaxes(rangemode="tozero")
         fig.update_yaxes(rangemode="tozero")
         fig.update_layout(height=500, width=500,
-                          title=dict(text="Efficient Frontier"))
+                          title=dict(text=""))
         fig.update_layout(
             xaxis_title="Annual Standard Deviation (Risk)",
             yaxis_title="Annual Return",
@@ -520,6 +559,8 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
+        st.markdown(f"#### Portfolio Diversification:")
+        st.markdown('---')
         df = ef.iloc[st.session_state.selected_port]
         selected_port_tickers = df.index.tolist()[3:]
         selected_port_diversification = df.iloc[3:len(df)]
@@ -541,7 +582,10 @@ def display_efficient_frontier(ef: pd.DataFrame):
         fig.update_traces(textinfo='label+percent', textfont_size=14)
         fig.update_traces(
             hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
-        fig.update_layout(title='Portfolio Diversification')
+        fig.update_layout(height=500,
+                          autosize=True,
+                          # title='Portfolio Diversification'
+                          )
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('#### **Statistics of Selected Portfolio:**')
@@ -550,12 +594,91 @@ def display_efficient_frontier(ef: pd.DataFrame):
     st.text(f"Expected Annual Return +/- 1 Std Dev (68% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']):.2%} to {
             (selected_portfolio['Return']+selected_portfolio['Std Dev']):.2%}")
     st.text(f"Expected Annual Return +/- 2 Std Dev (95% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']*2):.2%} to {
-        (selected_portfolio['Return']+selected_portfolio['Std Dev']*2):.2%}")
+            (selected_portfolio['Return']+selected_portfolio['Std Dev']*2):.2%}")
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
         format_dict: dict[str, str] = {}
         for c in ef.columns:
             format_dict[c] = "{:.2%}"
         st.dataframe(ef.style.format(formatter=format_dict))
+
+
+def display_current_vs_selected_portfolio(curr_weights: pd.DataFrame,
+                                          curr_port_sd: float,
+                                          curr_port_return: float,
+                                          curr_port_sharpe: float,
+                                          selected_port: pd.DataFrame) -> None:
+    with st.expander('Current Portfolio (Click to Hide/Show)', expanded=True):
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"##### Current Portfolio:")
+            st.markdown('---')
+            df = selected_port
+            selected_port_tickers = df.index.tolist()[3:]
+            selected_port_diversification = df.iloc[3:len(df)]
+            customdata_set = st.session_state.names_and_inceptions[[
+                'Name']]
+            values = curr_weights.tolist()
+            labels = selected_port_tickers
+            fig = go.Figure(data=[go.Pie(
+                            values=values,
+                            labels=labels,
+                            customdata=customdata_set,
+                            name="",
+                            sort=False, direction='clockwise',
+                            showlegend=True,
+                            automargin=False
+                            ),
+            ]
+            )
+            fig.update_traces(textinfo='label+percent', textfont_size=14)
+            fig.update_traces(
+                hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
+            fig.update_layout(autosize=True,
+                              height=500,
+                              # title='Selected Portfolio Diversification'
+                              )
+            st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            st.markdown(f"##### Selected Portfolio:")
+            st.markdown('---')
+            df = selected_port
+            selected_port_tickers = df.index.tolist()[3:]
+            selected_port_diversification = df.iloc[3:len(df)]
+            customdata_set = st.session_state.names_and_inceptions[[
+                'Name']]
+            values = selected_port_diversification.tolist()
+            labels = selected_port_tickers
+            fig = go.Figure(data=[go.Pie(
+                            values=values,
+                            labels=labels,
+                            customdata=customdata_set,
+                            name="",
+                            sort=False, direction='clockwise',
+                            showlegend=True,
+                            automargin=False
+                            ),
+            ]
+            )
+            fig.update_traces(textinfo='label+percent', textfont_size=14)
+            fig.update_traces(
+                hovertemplate='<b>%{customdata[0]}</b><br>'+'%{label}<br>'+'%{percent:.1%}',)
+            fig.update_layout(
+                # title='Selected Portfolio Diversification',
+                height=500, autosize=True)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Display Stats of Current Portfolio vs Selected Portfolio
+        data = {'Portfolio': ['Current', 'Selected'],
+                'Return': [curr_port_return, selected_port['Return']],
+                'Std Dev': [curr_port_sd, selected_port['Std Dev']],
+                'Sharpe': [curr_port_sharpe, selected_port['Sharpe']]}
+        df: pd.DataFrame = pd.DataFrame(data)
+        co11, col2, col3 = st.columns([4,4,4])
+        with col2:
+            st.markdown(f"##### Comparison of Current to Selected")
+            st.dataframe(df.style.format(
+                {"Return": "{:.2%}", "Std Dev": "{:.2%}", "Sharpe": "{:.2f}"}), hide_index=True)
+            # st.dataframe(df,hide_index=True)
 
 
 if __name__ == "__main__":
@@ -586,6 +709,9 @@ if __name__ == "__main__":
             st.session_state.cov_matrix,
             st.session_state.correlation_matrix,
             st.session_state.efficient_frontier,
+            st.session_state.current_portfolio_return,
+            st.session_state.current_portfolio_sd,
+            st.session_state.current_portfolio_sharpe
         ) = calc_port_stats(st.session_state.tickers_and_constraints,
                             st.session_state.rf_rate,
                             st.session_state.adj_daily_close)
@@ -603,17 +729,15 @@ if __name__ == "__main__":
         display_correlation_matrix(
             st.session_state.correlation_matrix, st.session_state.names_and_inceptions)
         display_efficient_frontier(st.session_state.efficient_frontier)
+        if not np.isnan(st.session_state.current_portfolio_return):
+            display_current_vs_selected_portfolio(
+                st.session_state.tickers_and_constraints['Curr Weight'],
+                st.session_state.current_portfolio_sd,
+                st.session_state.current_portfolio_return,
+                st.session_state.current_portfolio_sharpe,
+                st.session_state.efficient_frontier.iloc[
+                    st.session_state.selected_port])
 
-
-        # current_portfolio_return = ps.get_portfolio_return(
-        #     st.session_state.tickers_and_constraints['Curr Weight'],
-        #     st.session_state.expected_returns)
-        # current_portfolio_sd: float = ps.get_portfolio_sd(
-        #     st.session_state.tickers_and_constraints['Curr Weight'], st.session_state.cov_matrix)
-        # current_portfolio_sharpe: float = (current_portfolio_return-st.session_state.rf_rate/100)/current_portfolio_sd
-        # print('------------------------------------')
-        # print(f"current_portfolio_return: {current_portfolio_return:.2%}")
-        # print(f"current_portfolio_sd: {current_portfolio_sd:.2%}")
-        # print(f"current_portfolio_sharpe: {current_portfolio_sharpe:.2f}")
-
-    # st.write(st.session_state)
+        with st.expander('Inspect session_state (Click to Show/Hide)', expanded=False):
+            pass
+            st.write(st.session_state)
