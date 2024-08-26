@@ -588,7 +588,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
                           )
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown('##### **Statistics of Selected Portfolio:**')
+    st.markdown('##### Statistics of Selected Portfolio:')
     st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev: {
             selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
     
