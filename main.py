@@ -614,7 +614,8 @@ def display_current_vs_selected_portfolio(curr_weights: pd.DataFrame,
                                           curr_port_return: float,
                                           curr_port_sharpe: float,
                                           selected_port: pd.DataFrame) -> None:
-    with st.expander('Current Portfolio (Click to Hide/Show)', expanded=True):
+    with st.expander('Compare Current Portfolio to Selected Portfolio (Click to Hide/Show)', expanded=True):
+        st.markdown(f"### Compare Current Portfolio to Selected Portfolio")
         col1, col2 = st.columns(2)
         with col1:
             st.markdown(f"##### Current Portfolio:")
