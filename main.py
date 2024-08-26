@@ -588,13 +588,20 @@ def display_efficient_frontier(ef: pd.DataFrame):
                           )
         st.plotly_chart(fig, use_container_width=True)
 
-    st.markdown('#### **Statistics of Selected Portfolio:**')
+    st.markdown('##### **Statistics of Selected Portfolio:**')
     st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev: {
             selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
-    st.text(f"Expected Annual Return +/- 1 Std Dev (68% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']):.2%} to {
-            (selected_portfolio['Return']+selected_portfolio['Std Dev']):.2%}")
-    st.text(f"Expected Annual Return +/- 2 Std Dev (95% Probability): {(selected_portfolio['Return']-selected_portfolio['Std Dev']*2):.2%} to {
-            (selected_portfolio['Return']+selected_portfolio['Std Dev']*2):.2%}")
+    
+    # Display Selected Portfolio (+/-) 1 & 2 Std Dev's
+    data:dict= {'Probability':['68% Probability (+/- 1 Std Dev)','95% Probability (+/- 2 Std Dev\'s'],
+                'Lowest Annual Return':[selected_portfolio['Return']-selected_portfolio['Std Dev'],selected_portfolio['Return']-selected_portfolio['Std Dev']*2],
+                'Highest Annual Return':[selected_portfolio['Return']+selected_portfolio['Std Dev'],selected_portfolio['Return']+selected_portfolio['Std Dev']*2],
+    }
+    df: pd.DataFrame = pd.DataFrame(data)
+    st.markdown(f"##### Probability of Returns for Selected Portfolio:")
+    st.dataframe(df.style.format(
+        {"Lowest Annual Return": "{:.2%}", "Highest Annual Return": "{:.2%}"}), hide_index=True)
+    
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
         format_dict: dict[str, str] = {}
         for c in ef.columns:
@@ -675,7 +682,7 @@ def display_current_vs_selected_portfolio(curr_weights: pd.DataFrame,
         df: pd.DataFrame = pd.DataFrame(data)
         co11, col2, col3 = st.columns([4,4,4])
         with col2:
-            st.markdown(f"##### Comparison of Current to Selected")
+            st.markdown(f"##### Current Portfolio vs Selected Portfolio")
             st.dataframe(df.style.format(
                 {"Return": "{:.2%}", "Std Dev": "{:.2%}", "Sharpe": "{:.2f}"}), hide_index=True)
             # st.dataframe(df,hide_index=True)
