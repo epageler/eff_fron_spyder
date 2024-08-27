@@ -38,14 +38,32 @@ def configure_page() -> None:
 
 
 def overview() -> None:
-    st.markdown("## Overview")
+    st.markdown("### Overview")
     st.markdown(
-        "#### This app determines the Efficient Frontier for a specified list of investments and timeframe."
+        "##### This app determines the Efficient Frontier for a specified list of investments."
     )
     st.markdown(
-        "The objective is to determine the optimum diversification of an investment portfolio."
-    )
-    st.divider()
+        "The objective is to determine the optimum diversification of an investment portfolio. The optimum portfolio is defined as one that maximizes return for a give level of risk (Standard Deviation).")
+    st.markdown("It also allows you to compare the current diversification of your portfolio to a selected portfolio on the Efficient Frontier.")
+
+    with st.expander("Instructions to Use Application. (Click to Hide/Show)", expanded=False):
+        st.markdown(
+            "To get started, follow the Steps listed in the sidebar on the left.")
+        st.markdown("If you want to perform determine the Efficient Frontier for your own list of investments, select \"Custom\" scenario and drag & drop an Excel file from your computer.")
+        st.markdown("The Excel file must have the following format:")
+        st.image("./data/custom_excel_format.png")
+        st.markdown(
+            "If you would like to compare your current portfolio, enter values in the \"Curr Weight\" column.")
+
+    with st.expander("Additional Resources on Efficient Frontier (Click to Show/Hide)", expanded=False):
+        st.markdown("##### Some useful resources:")
+        st.markdown(
+            "Efficient Frontier: What It Is and How Investors Use It (www.investopedia.com/terms/e/efficientfrontier.asp)")
+        st.markdown(
+            "Markowitz Efficient Set: Meaning, Implementation, Diversification (www.investopedia.com/terms/m/markowitzefficientset.asp)")
+        st.markdown("Efficient Frontier and Portfolio Optimization Explained | The Ultimate Guide (www.youtube.com/watch?v=pwyR9uAM0iU&list=PLPe-_ytPHqygIlNok8a3pm1xwHXwVsYmv&index=1&t=44s)")
+        st.markdown(
+            "Portfolio Optimization in Excel: Step by Step Tutorial (www.youtube.com/watch?v=XQS17YrZvEs&list=LL&index=2)")
 
 
 def sidebar():
@@ -73,15 +91,16 @@ def sidebar():
         st.session_state.selected_port = None
 
     with st.sidebar:
-        st.markdown("# Configure Analysis")
-        st.markdown("### Step 1: Select Excel File with Tickers & Constraints")
+        st.markdown("# Configure Analysis:")
+        st.markdown("#### Step 1: Select Pre-Configured Scenario or Select Custom Excel File")
         old_tickers_and_constraints = st.session_state.tickers_and_constraints
         options: list[str] = ["Major Asset Classes, Constrained",
                               "Major Asset Classes, Unconstrained",
                               "S&P Industry Sectors, Constrained",
                               "S&P Industry Sectors, Unconstrained",
                               "Custom"]
-        opt = st.selectbox("Select Scenario", options, index=None)
+        opt = st.selectbox("Select Scenario", options, index=None,
+                           help='Select from list of pre-configured scenario. Or, choose \"Custom\" & drag & drop Excel file from your computer.')
         if opt == options[0]:
             st.session_state.tickers_and_constraints = pd.read_excel(
                 "./data/asset_classes_constrained.xlsx"
@@ -120,7 +139,7 @@ def sidebar():
             else:
                 st.session_state.names_and_inceptions = names_and_inceptions
                 st.markdown(
-                    "### Step 2: Select Start Date, End Date, & Risk Free Rate")
+                    "#### Step 2: Select History Start Date &End Date and Risk Free Rate")
                 # Find latest inception date
                 df = names_and_inceptions
                 max_inception_date: datetime = df.loc[df.loc[:, 'Inception'].idxmax(
@@ -141,7 +160,8 @@ def sidebar():
                         # value=datetime.today() - timedelta(1) - relativedelta(years=3),
                         # for testing youtube
                         # value=datetime(year=2007, month=5, day=29),
-                        min_value=max_inception_date
+                        min_value=max_inception_date,
+                        help='Defaults to latest Inception Date of selected investments.'
                     )
                     end_date = st.date_input(
                         "Select End Date (MM-DD-YYYY)",
@@ -149,10 +169,12 @@ def sidebar():
                         value=datetime.today() - timedelta(1),
                         # for testing youtube
                         # value=datetime(year=2023, month=5, day=20),
+                        help='Defaults to yesterday'
                     )
                     # rf_rate = st.number_input("Specify Risk-Free Rate", min_value=0.00)
                     rf_rate = st.number_input(
                         "Specify Risk-Free Rate", min_value=0.00, value=st.session_state.curr_rf_rate*100,
+                        help='Defaults to current yield on 10-year Treasury bond.'
                     )
                     calc_ef_button = st.form_submit_button(
                         "Calculate Efficient Frontier"
@@ -591,17 +613,17 @@ def display_efficient_frontier(ef: pd.DataFrame):
     st.markdown('##### Statistics of Selected Portfolio:')
     st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev: {
             selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
-    
+
     # Display Selected Portfolio (+/-) 1 & 2 Std Dev's
-    data:dict= {'Probability':['68% Probability (+/- 1 Std Dev)','95% Probability (+/- 2 Std Dev\'s'],
-                'Lowest Annual Return':[selected_portfolio['Return']-selected_portfolio['Std Dev'],selected_portfolio['Return']-selected_portfolio['Std Dev']*2],
-                'Highest Annual Return':[selected_portfolio['Return']+selected_portfolio['Std Dev'],selected_portfolio['Return']+selected_portfolio['Std Dev']*2],
-    }
+    data: dict = {'Probability': ['68% Probability (+/- 1 Std Dev)', '95% Probability (+/- 2 Std Dev\'s'],
+                  'Lowest Annual Return': [selected_portfolio['Return']-selected_portfolio['Std Dev'], selected_portfolio['Return']-selected_portfolio['Std Dev']*2],
+                  'Highest Annual Return': [selected_portfolio['Return']+selected_portfolio['Std Dev'], selected_portfolio['Return']+selected_portfolio['Std Dev']*2],
+                  }
     df: pd.DataFrame = pd.DataFrame(data)
     st.markdown(f"##### Probability of Returns for Selected Portfolio:")
     st.dataframe(df.style.format(
         {"Lowest Annual Return": "{:.2%}", "Highest Annual Return": "{:.2%}"}), hide_index=True)
-    
+
     with st.expander("Efficient Frontier Table (Click to Hide / Show)", expanded=False):
         format_dict: dict[str, str] = {}
         for c in ef.columns:
@@ -681,7 +703,7 @@ def display_current_vs_selected_portfolio(curr_weights: pd.DataFrame,
                 'Std Dev': [curr_port_sd, selected_port['Std Dev']],
                 'Sharpe': [curr_port_sharpe, selected_port['Sharpe']]}
         df: pd.DataFrame = pd.DataFrame(data)
-        co11, col2, col3 = st.columns([4,4,4])
+        co11, col2, col3 = st.columns([4, 4, 4])
         with col2:
             st.markdown(f"##### Current Portfolio vs Selected Portfolio")
             st.dataframe(df.style.format(
@@ -746,6 +768,6 @@ if __name__ == "__main__":
                 st.session_state.efficient_frontier.iloc[
                     st.session_state.selected_port])
 
-        with st.expander('Inspect session_state (Click to Show/Hide)', expanded=False):
-            pass
-            st.write(st.session_state)
+        # with st.expander('Inspect session_state (Click to Show/Hide)', expanded=False):
+        #     pass
+        #     st.write(st.session_state)
