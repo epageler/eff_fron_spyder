@@ -43,7 +43,7 @@ def overview() -> None:
         "##### This app determines the Efficient Frontier for a specified list of investments."
     )
     st.markdown(
-        "The objective is to determine the optimum diversification of an investment portfolio. The optimum portfolio is defined as one that maximizes return for a give level of risk (Standard Deviation).")
+        "The objective is to determine the optimum diversification of an investment portfolio. The optimum portfolio is defined as one that maximizes return for a give level of risk, as measured by Standard Deviation.")
     st.markdown("It also allows you to compare the current diversification of your portfolio to a selected portfolio on the Efficient Frontier.")
 
     with st.expander("Instructions to Use Application. (Click to Hide/Show)", expanded=False):
@@ -53,17 +53,16 @@ def overview() -> None:
         st.markdown("The Excel file must have the following format:")
         st.image("./data/custom_excel_format.png")
         st.markdown(
-            "If you would like to compare your current portfolio, enter values in the \"Curr Weight\" column.")
+            "If you would like to compare your current portfolio, enter the current investment weights of your portfolio in the \"Curr Weight\" column.")
 
     with st.expander("Additional Resources on Efficient Frontier (Click to Show/Hide)", expanded=False):
         st.markdown("##### Some useful resources:")
         st.markdown(
-            "Efficient Frontier: What It Is and How Investors Use It (www.investopedia.com/terms/e/efficientfrontier.asp)")
+            "1. Article: Efficient Frontier: What It Is and How Investors Use It by Akhilesh Ganti  \nlink: www.investopedia.com/terms/e/efficientfrontier.asp")
+        st.markdown("2. Article: Markowitz Efficient Set: Meaning, Implementation, Diversification by Will Kenton  \nlink: www.investopedia.com/terms/m/markowitzefficientset.asp")
+        st.markdown("3. Video: Efficient Frontier and Portfolio Optimization Explained | The Ultimate Guide by Ryan O'Connell, CFA, FRM  \n link: www.youtube.com/watch?v=pwyR9uAM0iU&list=PLPe-_ytPHqygIlNok8a3pm1xwHXwVsYmv&index=1&t=44s")
         st.markdown(
-            "Markowitz Efficient Set: Meaning, Implementation, Diversification (www.investopedia.com/terms/m/markowitzefficientset.asp)")
-        st.markdown("Efficient Frontier and Portfolio Optimization Explained | The Ultimate Guide (www.youtube.com/watch?v=pwyR9uAM0iU&list=PLPe-_ytPHqygIlNok8a3pm1xwHXwVsYmv&index=1&t=44s)")
-        st.markdown(
-            "Portfolio Optimization in Excel: Step by Step Tutorial (www.youtube.com/watch?v=XQS17YrZvEs&list=LL&index=2)")
+            "4. Video: Portfolio Optimization in Excel: Step by Step Tutorial by Ryan O'Connell, CFA, FRM  \nlink: www.youtube.com/watch?v=XQS17YrZvEs&list=LL&index=2")
 
 
 def sidebar():
