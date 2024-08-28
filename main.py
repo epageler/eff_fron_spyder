@@ -11,8 +11,6 @@ import efrontier as ef
 import plotly.express as px
 import plotly.graph_objects as go
 
-import pprint
-
 
 def init_session_state() -> None:
     st.session_state.tickers_and_constraints = pd.DataFrame()
@@ -50,7 +48,7 @@ def overview() -> None:
         st.markdown(
             "To get started, follow the Steps listed in the sidebar on the left.")
         st.markdown("If you want to perform determine the Efficient Frontier for your own list of investments, select \"Custom\" scenario and drag & drop an Excel file from your computer.")
-        st.markdown("The Excel file must have the following format:")
+        st.markdown("The Excel file must have the following format (be sure to spell the column headings exactly as shown):")
         st.image("./data/custom_excel_format.png")
         st.markdown(
             "If you would like to compare your current portfolio, enter the current investment weights of your portfolio in the \"Curr Weight\" column.")
@@ -631,10 +629,26 @@ def display_efficient_frontier(ef: pd.DataFrame):
 
 
 def display_current_vs_selected_portfolio(curr_weights: pd.DataFrame,
+                                          min_weights:pd.DataFrame,
+                                          max_weights:pd.DataFrame,
                                           curr_port_sd: float,
                                           curr_port_return: float,
                                           curr_port_sharpe: float,
                                           selected_port: pd.DataFrame) -> None:
+    
+    # Check that "Curr Weights" do not violate "Min Weight" / "Max Weight"
+    e=[]
+    for i in range(len(curr_weights)):
+        if (curr_weights[i]<min_weights[i] or curr_weights[i]>max_weights[i]):
+            e.append(selected_port.index[i+3])
+    if len(e)!=0:
+        st.error(f"Note! The following investments violate your Minimum / Maximum investment weights: {e}")
+        
+    # Check if sum of current investment weights are less than 100%
+    s= curr_weights.sum()
+    if s<1:
+        st.error(f"Note: The sum of the current weights in your portfolio is {s:.2%}, which is less than 100.00%.")
+    
     with st.expander('Compare Current Portfolio to Selected Portfolio (Click to Hide/Show)', expanded=True):
         st.markdown(f"### Compare Current Portfolio to Selected Portfolio")
         col1, col2 = st.columns(2)
@@ -761,6 +775,8 @@ if __name__ == "__main__":
         if not np.isnan(st.session_state.current_portfolio_return):
             display_current_vs_selected_portfolio(
                 st.session_state.tickers_and_constraints['Curr Weight'],
+                st.session_state.tickers_and_constraints['Min Weight'],
+                st.session_state.tickers_and_constraints['Max Weight'],
                 st.session_state.current_portfolio_sd,
                 st.session_state.current_portfolio_return,
                 st.session_state.current_portfolio_sharpe,
