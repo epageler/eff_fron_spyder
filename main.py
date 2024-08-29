@@ -36,7 +36,7 @@ def configure_page() -> None:
 
 
 def overview() -> None:
-    st.markdown("### Overview")
+    st.markdown("### Overview:")
     st.markdown(
         "##### This app determines the Efficient Frontier for a specified list of investments."
     )
@@ -44,15 +44,18 @@ def overview() -> None:
         "The objective is to determine the optimum diversification of an investment portfolio. The optimum portfolio is defined as one that maximizes return for a give level of risk, as measured by Standard Deviation.")
     st.markdown("It also allows you to compare the current diversification of your portfolio to a selected portfolio on the Efficient Frontier.")
 
+    st.markdown("### Instructions:")
     with st.expander("Instructions to Use Application. (Click to Hide/Show)", expanded=False):
         st.markdown(
             "To get started, follow the Steps listed in the sidebar on the left.")
-        st.markdown("If you want to perform determine the Efficient Frontier for your own list of investments, select \"Custom\" scenario and drag & drop an Excel file from your computer.")
-        st.markdown("The Excel file must have the following format (be sure to spell the column headings exactly as shown):")
+        st.markdown("If you want to determine the Efficient Frontier for your own list of investments, select \"Custom\" scenario and drag & drop an Excel file from your computer.")
+        st.markdown(
+            "The Excel file must have the following format: (Be sure to spell the column headings exactly as shown.)")
         st.image("./data/custom_excel_format.png")
         st.markdown(
-            "If you would like to compare your current portfolio, enter the current investment weights of your portfolio in the \"Curr Weight\" column.")
+            "If you would like to compare your current portfolio to the Efficient Frontier, enter the current investment weights of your portfolio in the \"Curr Weight\" column.")
 
+    st.markdown("### Additional Resources:")
     with st.expander("Additional Resources on Efficient Frontier (Click to Show/Hide)", expanded=False):
         st.markdown("##### Some useful resources:")
         st.markdown(
@@ -89,7 +92,8 @@ def sidebar():
 
     with st.sidebar:
         st.markdown("# Configure Analysis:")
-        st.markdown("#### Step 1: Select Pre-Configured Scenario or Select Custom Excel File")
+        st.markdown(
+            "#### Step 1: Select Pre-Configured Scenario or Select Custom Excel File")
         old_tickers_and_constraints = st.session_state.tickers_and_constraints
         options: list[str] = ["Major Asset Classes, Constrained",
                               "Major Asset Classes, Unconstrained",
@@ -311,21 +315,20 @@ def display_growth_of_10000_table(tickers_and_constraints: pd.DataFrame, growth_
 
 def display_growth_of_10000_graph(tickers_and_constraints: pd.DataFrame, growth_of_10000: pd.DataFrame) -> None:
     with st.expander("Growth of $10,000 Graph (Click to Hide / Show)", expanded=True):
-
         # Display Graph
-        tickers: list[str] = tickers_and_constraints["Ticker"].tolist()
-        # adj_daily_close = yf_api.get_adj_daily_close(tickers, start, end)
-        # growth_of_10000 = ps.get_growth_10000(adj_daily_close)
+        customdata_set: list = list(
+            tickers_and_constraints[['Ticker']].to_numpy())
         columns = growth_of_10000.columns
-        format_dict: dict[str, str] = {}
-        for c in columns:
-            format_dict[c] = "${:,.2f}"
         fig = px.line(
             growth_of_10000,
-            x=growth_of_10000.index,
-            y=growth_of_10000.columns[0: len(growth_of_10000.columns)],
+            x=growth_of_10000.index,  # date column
+            y=growth_of_10000.columns[0: len(
+                growth_of_10000.columns)],   # Value on date
             title="Growth of $10,000",
-            # color="Ticker",
+        )
+        fig.update_traces(
+            customdata=customdata_set,
+            hovertemplate="Date: %{x}<br>Value: $%{y:,.0f}",
         )
         fig.update_layout(
             title="Growth of $10,000",
@@ -356,7 +359,7 @@ def display_return_and_sd_table_and_graph(
     names_and_inceptions, expected_returns, std_deviations
 ) -> None:
     with st.expander(
-        "Expected Return, Standard Deviation, Sharpe Ratio for Each Investment (Click to Hide / Show)", expanded=True
+        "Annual Return, Standard Deviation, & Sharpe Ratio for Each Investment (Click to Hide / Show)", expanded=True
     ):
         df = pd.DataFrame(
             {
@@ -444,8 +447,8 @@ def display_correlation_matrix(cm: pd.DataFrame, names_and_inceptions: pd.DataFr
             title_font_size=24,
             # title_x=0.5,
             autosize=False,
-            width=800,
-            height=800,
+            width=900,
+            height=900,
             font=dict(size=18),
             hoverlabel_align='right',
             hoverlabel=dict(font=dict(size=16))
@@ -608,7 +611,7 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.plotly_chart(fig, use_container_width=True)
 
     st.markdown('##### Statistics of Selected Portfolio:')
-    st.text(f"Expected Annual Return: {selected_portfolio['Return']:.2%}   Std Dev: {
+    st.text(f"Annual Return: {selected_portfolio['Return']:.2%}   Std Dev: {
             selected_portfolio['Std Dev']:.2%}   Sharpe Ratio: {selected_portfolio['Sharpe']:.2f}")
 
     # Display Selected Portfolio (+/-) 1 & 2 Std Dev's
@@ -628,27 +631,31 @@ def display_efficient_frontier(ef: pd.DataFrame):
         st.dataframe(ef.style.format(formatter=format_dict))
 
 
-def display_current_vs_selected_portfolio(curr_weights: pd.DataFrame,
-                                          min_weights:pd.DataFrame,
-                                          max_weights:pd.DataFrame,
+def display_current_vs_selected_portfolio(tickers_and_constraints: pd.DataFrame,
                                           curr_port_sd: float,
                                           curr_port_return: float,
                                           curr_port_sharpe: float,
                                           selected_port: pd.DataFrame) -> None:
-    
+
     # Check that "Curr Weights" do not violate "Min Weight" / "Max Weight"
-    e=[]
+    curr_weights = tickers_and_constraints["Curr Weight"]
+    min_weights = tickers_and_constraints["Min Weight"]
+    max_weights = tickers_and_constraints["Max Weight"]
+    tickers = tickers_and_constraints["Ticker"]
+    e = []
     for i in range(len(curr_weights)):
-        if (curr_weights[i]<min_weights[i] or curr_weights[i]>max_weights[i]):
-            e.append(selected_port.index[i+3])
-    if len(e)!=0:
-        st.error(f"Note! The following investments violate your Minimum / Maximum investment weights: {e}")
-        
+        if (curr_weights[i] < min_weights[i] or curr_weights[i] > max_weights[i]):
+            e.append(tickers[i])
+    if len(e) != 0:
+        st.error(
+            f"Note! The following investments violate your Minimum / Maximum investment weights: {e}")
+
     # Check if sum of current investment weights are less than 100%
-    s= curr_weights.sum()
-    if s<1:
-        st.error(f"Note: The sum of the current weights in your portfolio is {s:.2%}, which is less than 100.00%.")
-    
+    s = curr_weights.sum()
+    if s < 1:
+        st.error(f"Note! The sum of the current weights in your portfolio is {
+                 s:.2%}, which is less than 100.00%.")
+
     with st.expander('Compare Current Portfolio to Selected Portfolio (Click to Hide/Show)', expanded=True):
         st.markdown(f"### Compare Current Portfolio to Selected Portfolio")
         col1, col2 = st.columns(2)
@@ -774,15 +781,14 @@ if __name__ == "__main__":
         display_efficient_frontier(st.session_state.efficient_frontier)
         if not np.isnan(st.session_state.current_portfolio_return):
             display_current_vs_selected_portfolio(
-                st.session_state.tickers_and_constraints['Curr Weight'],
-                st.session_state.tickers_and_constraints['Min Weight'],
-                st.session_state.tickers_and_constraints['Max Weight'],
+                st.session_state.tickers_and_constraints,
                 st.session_state.current_portfolio_sd,
                 st.session_state.current_portfolio_return,
                 st.session_state.current_portfolio_sharpe,
                 st.session_state.efficient_frontier.iloc[
                     st.session_state.selected_port])
 
+        # Inspect Session_State
         # with st.expander('Inspect session_state (Click to Show/Hide)', expanded=False):
         #     pass
         #     st.write(st.session_state)
